@@ -1,0 +1,1 @@
+const f=document.getElementById('f'),c=document.getElementById('cv'),x=c.getContext('2d');f.onchange=e=>{const img=new Image();img.onload=()=>{c.width=img.width;c.height=img.height;x.drawImage(img,0,0)};img.src=URL.createObjectURL(e.target.files[0]);};
