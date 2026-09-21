@@ -3,9 +3,11 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Mobile Scanner PWA - Active Version</title>
+    <title>Mobile Scanner - Full PDF Version</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- นำเข้าไลบรารีแปลง PDF แท้จริง -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <meta name="theme-color" content="#ffffff">
 </head>
 <body class="bg-gray-100 text-gray-800 flex flex-col h-screen justify-between max-w-md mx-auto shadow-2xl relative overflow-hidden font-sans">
@@ -43,7 +45,7 @@
 
             <div>
                 <h3 class="text-sm font-medium text-gray-500 mb-3">ไฟล์ล่าสุด</h3>
-                <div class="space-y-3" id="recent-files-container">
+                <div class="space-y-3">
                     <div class="flex items-center justify-between p-2 hover:bg-gray-50 rounded-xl cursor-pointer" onclick="openEditorSample()">
                         <div class="flex items-center space-x-3">
                             <div class="text-blue-400 text-4xl"><i class="fa-solid fa-folder"></i></div>
@@ -75,7 +77,7 @@
         </nav>
     </div>
 
-    <!-- 2. หน้ากล้อง (Camera Screen with Real Camera Stream) -->
+    <!-- 2. หน้ากล้อง (Camera Screen) -->
     <div id="screen-camera" class="hidden flex flex-col h-full bg-black text-white relative z-30">
         <div class="flex justify-between items-center p-4 z-10">
             <button onclick="closeCameraScreen()" class="w-9 h-9 rounded-full bg-black/40 flex items-center justify-center text-white text-lg"><i class="fa-solid fa-xmark"></i></button>
@@ -85,7 +87,6 @@
         </div>
 
         <div class="flex-grow flex flex-col items-center justify-center relative overflow-hidden">
-            <!-- Real Camera Video Element -->
             <video id="camera-stream" autoplay playsinline class="absolute inset-0 w-full h-full object-cover"></video>
             <canvas id="capture-canvas" class="hidden"></canvas>
 
@@ -173,7 +174,7 @@
         </div>
 
         <div class="bg-white border-t border-gray-100 py-3 px-6 flex justify-between items-center font-medium">
-            <button onclick="exportImage()" class="text-blue-500 text-sm">ส่งออกรูป</button>
+            <button onclick="exportPDF()" class="text-blue-500 text-sm">ส่งออก PDF</button>
             <button onclick="saveDocument()" class="bg-blue-500 text-white px-8 py-2.5 rounded-full text-sm shadow-md hover:bg-blue-600 transition">บันทึก</button>
         </div>
     </div>
@@ -213,7 +214,7 @@
             const ctx = canvas.getContext('2d');
             ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
             
-            const imageUrl = canvas.toDataURL('image/png');
+            const imageUrl = canvas.toDataURL('image/jpeg', 0.9);
             document.getElementById('editor-preview-img').src = imageUrl;
 
             closeCameraScreen();
@@ -225,7 +226,7 @@
                 const reader = new FileReader();
                 reader.onload = function(evt) {
                     document.getElementById('editor-preview-img').src = evt.target.result;
-                    document.getElementById('screen-home').classList.add('hidden');
+                    document.getElementById('screen-camera').classList.add('hidden');
                     document.getElementById('screen-editor').classList.remove('hidden');
                 };
                 reader.readAsDataURL(e.target.files[0]);
@@ -264,16 +265,19 @@
             document.getElementById('editor-preview-img').style.filter = filterStyle;
         }
 
-        function exportImage() {
-            const img = document.getElementById('editor-preview-img').src;
-            const link = document.createElement('a');
-            link.href = img;
-            link.download = 'scanned-document.png';
-            link.click();
+        // ฟังก์ชันแปลงและดาวน์โหลดเป็นไฟล์ PDF จริงๆ
+        async function exportPDF() {
+            const { jsPDF } = window.jspdf;
+            const doc = new jsPDF();
+            const imgData = document.getElementById('editor-preview-img').src;
+            
+            doc.addImage(imgData, 'JPEG', 10, 10, 190, 270);
+            doc.save('scanned-document.pdf');
         }
 
         function saveDocument() {
-            alert('บันทึกเอกสารเข้าสู่ระบบเรียบร้อยแล้ว!');
+            exportPDF();
+            alert('บันทึกและดาวน์โหลดเอกสาร PDF สำเร็จ!');
             closeEditor();
         }
     </script>
