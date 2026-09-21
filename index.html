@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mobile Scanner PWA</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <meta name="theme-color" content="#ffffff">
+</head>
+<body class="bg-gray-100 text-gray-800 flex flex-col h-screen justify-between max-w-md mx-auto shadow-2xl relative overflow-hidden font-sans">
+
+    <!-- 1. หน้าหลัก (File List View) -->
+    <div id="screen-home" class="flex flex-col h-full bg-white relative">
+        <header class="px-5 pt-8 pb-3 bg-white flex justify-between items-center z-10">
+            <h1 class="text-3xl font-bold tracking-tight">ไฟล์</h1>
+            <div class="flex space-x-5 text-gray-600 text-xl items-center">
+                <i class="fa-solid fa-magnifying-glass cursor-pointer" onclick="alert('ค้นหาเอกสาร')"></i>
+                <i class="fa-solid fa-folder-plus cursor-pointer" onclick="document.getElementById('file-upload').click()"></i>
+                <i class="fa-solid fa-table-cells cursor-pointer" onclick="toggleViewMode()"></i>
+                <i class="fa-solid fa-circle-check cursor-pointer" onclick="alert('โหมดเลือกหลายรายการ')"></i>
+            </div>
+            <input type="file" id="file-upload" class="hidden" accept="image/*" multiple onchange="handleFileSelect(event)">
+        </header>
+
+        <main class="p-5 overflow-y-auto flex-grow pb-24 space-y-6">
+            <div class="grid grid-cols-2 gap-4">
+                <div onclick="openFolder('นำเข้าภาพถ่ายไปยัง PDF')" class="bg-gray-50 p-4 rounded-2xl border border-gray-100 flex flex-col justify-between cursor-pointer hover:bg-gray-100 transition">
+                    <div class="flex justify-between items-start mb-4">
+                        <div class="text-blue-400 text-4xl"><i class="fa-solid fa-folder"></i></div>
+                        <div class="w-8 h-8 rounded-full bg-white shadow-sm flex items-center justify-center text-blue-500"><i class="fa-solid fa-images text-sm"></i></div>
+                    </div>
+                    <div><h2 class="font-medium text-sm leading-tight text-gray-800">นำเข้าภาพถ่ายไปยัง PDF</h2></div>
+                </div>
+                <div onclick="openFolder('นำเข้า iCloud ไปยัง PDF')" class="bg-gray-50 p-4 rounded-2xl border border-gray-100 flex flex-col justify-between cursor-pointer hover:bg-gray-100 transition">
+                    <div class="flex justify-between items-start mb-4">
+                        <div class="text-blue-400 text-4xl"><i class="fa-solid fa-folder"></i></div>
+                        <div class="w-8 h-8 rounded-full bg-white shadow-sm flex items-center justify-center text-blue-500"><i class="fa-solid fa-cloud text-sm"></i></div>
+                    </div>
+                    <div><h2 class="font-medium text-sm leading-tight text-gray-800">นำเข้า iCloud ไปยัง PDF</h2></div>
+                </div>
+            </div>
+
+            <div>
+                <h3 class="text-sm font-medium text-gray-500 mb-3">ไฟล์ล่าสุด</h3>
+                <div class="space-y-3">
+                    <div class="flex items-center justify-between p-2 hover:bg-gray-50 rounded-xl cursor-pointer" onclick="openEditorSample()">
+                        <div class="flex items-center space-x-3">
+                            <div class="text-blue-400 text-4xl"><i class="fa-solid fa-folder"></i></div>
+                            <div>
+                                <h4 class="font-medium text-sm text-gray-800">งานของฉัน</h4>
+                                <span class="text-xs text-gray-400">09/21/69</span>
+                            </div>
+                        </div>
+                        <button class="text-gray-400 p-2"><i class="fa-solid fa-ellipsis"></i></button>
+                    </div>
+                </div>
+            </div>
+        </main>
+
+        <nav class="absolute bottom-0 left-0 right-0 bg-white border-t border-gray-100 py-3 px-8 flex justify-between items-center z-20">
+            <a href="#" class="flex flex-col items-center text-blue-600">
+                <i class="fa-solid fa-folder text-lg"></i>
+                <span class="text-xs mt-1">ไฟล์</span>
+            </a>
+            <div class="absolute -top-5 left-1/2 transform -translate-x-1/2">
+                <button onclick="openCameraScreen()" class="bg-blue-500 text-white w-14 h-14 rounded-full shadow-lg flex items-center justify-center text-xl hover:bg-blue-600 border-4 border-white transition active:scale-95">
+                    <i class="fa-solid fa-camera"></i>
+                </button>
+            </div>
+            <a href="#" class="flex flex-col items-center text-gray-400">
+                <i class="fa-regular fa-user text-lg"></i>
+                <span class="text-xs mt-1">ฉัน</span>
+            </a>
+        </nav>
+    </div>
+
+    <!-- 2. หน้ากล้อง (Camera Screen) -->
+    <div id="screen-camera" class="hidden flex flex-col h-full bg-black text-white relative z-30">
+        <div class="flex justify-between items-center p-4 z-10">
+            <button onclick="closeCameraScreen()" class="w-9 h-9 rounded-full bg-black/40 flex items-center justify-center text-white text-lg"><i class="fa-solid fa-xmark"></i></button>
+            <div class="flex space-x-3">
+                <button class="px-3 py-1.5 rounded-full bg-black/40 text-xs flex items-center space-x-1 border border-white/20"><i class="fa-solid fa-bolt text-blue-400"></i><span>อัตโนมัติ</span></button>
+                <button class="px-3 py-1.5 rounded-full bg-black/40 text-xs flex items-center space-x-1 border border-white/20"><i class="fa-solid fa-flashlight"></i><span>ปิด</span></button>
+            </div>
+        </div>
+
+        <div class="flex-grow flex flex-col items-center justify-center relative p-6">
+            <div class="border-2 border-dashed border-blue-400 w-4/5 h-3/5 rounded-lg flex items-center justify-center relative">
+                <div class="absolute top-1/2 transform -translate-y-1/2 bg-black/60 px-4 py-2 rounded-full text-xs text-center">
+                    กำลังค้นหาเอกสาร...
+                </div>
+            </div>
+            <p class="text-xs text-gray-300 mt-4 text-center">ตรวจสอบให้แน่ใจว่าบริเวณรอบเอกสารปราศจากสิ่งกีดขวาง</p>
+        </div>
+
+        <div class="pb-8 pt-4 px-6 bg-gradient-to-t from-black/80 to-transparent">
+            <div class="flex justify-center space-x-6 text-xs text-gray-400 mb-6">
+                <span>นับ <sup class="bg-red-500 text-white px-1 rounded text-[9px]">NEW</sup></span>
+                <span class="text-white font-medium border-b-2 border-white pb-1">เดี่ยว</span>
+                <span>หลาย</span>
+            </div>
+            <div class="flex justify-around items-center">
+                <button onclick="document.getElementById('gallery-input').click()" class="flex flex-col items-center text-gray-300">
+                    <div class="w-10 h-10 rounded-lg bg-gray-800 border border-gray-600 flex items-center justify-center"><i class="fa-regular fa-image text-lg"></i></div>
+                    <span class="text-[10px] mt-1">อัลบั้ม</span>
+                </button>
+                <input type="file" id="gallery-input" class="hidden" accept="image/*" onchange="handleCameraCapture(event)">
+
+                <button onclick="capturePhoto()" class="w-16 h-16 rounded-full border-4 border-white flex items-center justify-center p-1">
+                    <div class="w-full h-full bg-white rounded-full active:scale-90 transition"></div>
+                </button>
+                <button onclick="closeCameraScreen()" class="text-xs text-gray-300 px-3 py-2">ยกเลิก</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 3. หน้าปรับแต่งและแก้ไขเอกสาร (Editor Screen) -->
+    <div id="screen-editor" class="hidden flex flex-col h-full bg-white text-gray-800 relative z-30">
+        <header class="px-4 py-3 flex justify-between items-center border-b border-gray-100">
+            <button onclick="closeEditor()" class="text-xl text-gray-600"><i class="fa-solid fa-chevron-left"></i></button>
+            <h2 class="font-medium text-base">ทดสอบต้นฉบับ</h2>
+            <div class="flex space-x-3 text-gray-600 text-sm">
+                <button class="w-7 h-7 bg-blue-500 text-white rounded-full flex items-center justify-center text-xs"><i class="fa-solid fa-chevron-left"></i></button>
+                <span class="text-xs flex items-center font-medium">1 / 1</span>
+                <button class="w-7 h-7 bg-blue-500 text-white rounded-full flex items-center justify-center text-xs"><i class="fa-solid fa-chevron-right"></i></button>
+            </div>
+        </header>
+
+        <main class="flex-grow bg-gray-100 flex flex-col items-center justify-center p-4 relative overflow-hidden">
+            <div class="bg-white p-3 rounded shadow-md max-w-xs w-full max-h-[60vh] overflow-auto border border-gray-200">
+                <img id="editor-preview-img" src="https://images.unsplash.com/photo-1606326608606-aa0b62935f2b?w=400&q=80" class="w-full h-auto object-contain rounded" alt="Document">
+            </div>
+            <div class="mt-4">
+                <button onclick="alert('นำเอฟเฟกต์นี้ไปใช้กับหน้าทั้งหมด')" class="bg-white border border-gray-200 text-gray-700 text-xs px-5 py-2 rounded-full shadow-sm font-medium">นำไปใช้กับทั้งหมด</button>
+            </div>
+        </main>
+
+        <div class="bg-white border-t border-gray-100 pt-3 pb-2 px-3 overflow-x-auto flex space-x-3 whitespace-nowrap text-center">
+            <div onclick="setFilter('original', this)" class="filter-btn cursor-pointer inline-block flex-shrink-0">
+                <div class="w-14 h-16 bg-gray-200 rounded border-2 border-blue-500 flex items-center justify-center text-[10px] text-gray-600 font-medium">Original</div>
+                <span class="text-[11px] text-gray-700 mt-1 block">Original</span>
+            </div>
+            <div onclick="setFilter('auto', this)" class="filter-btn cursor-pointer inline-block flex-shrink-0">
+                <div class="w-14 h-16 bg-blue-50 rounded border-2 border-transparent flex items-center justify-center text-[10px] text-blue-600 font-medium">สีอัติโนมัติ</div>
+                <span class="text-[11px] text-gray-500 mt-1 block">สีอัตโนมัติ</span>
+            </div>
+            <div onclick="setFilter('hd', this)" class="filter-btn cursor-pointer inline-block flex-shrink-0">
+                <div class="w-14 h-16 bg-gray-50 rounded border-2 border-transparent flex items-center justify-center text-[10px] text-gray-600 font-medium">HD</div>
+                <span class="text-[11px] text-gray-500 mt-1 block">HD คมชัด</span>
+            </div>
+            <div onclick="setFilter('print', this)" class="filter-btn cursor-pointer inline-block flex-shrink-0">
+                <div class="w-14 h-16 bg-gray-50 rounded border-2 border-transparent flex items-center justify-center text-[10px] text-gray-600 font-medium">Print</div>
+                <span class="text-[11px] text-gray-500 mt-1 block">พิมพ์แบบ HD</span>
+            </div>
+            <div onclick="setFilter('bw', this)" class="filter-btn cursor-pointer inline-block flex-shrink-0">
+                <div class="w-14 h-16 bg-gray-50 rounded border-2 border-transparent flex items-center justify-center text-[10px] text-gray-600 font-medium">B&W</div>
+                <span class="text-[11px] text-gray-500 mt-1 block">ลบ</span>
+            </div>
+            <div onclick="setFilter('bright', this)" class="filter-btn cursor-pointer inline-block flex-shrink-0">
+                <div class="w-14 h-16 bg-gray-50 rounded border-2 border-transparent flex items-center justify-center text-[10px] text-gray-600 font-medium">Bright</div>
+                <span class="text-[11px] text-gray-500 mt-1 block">ปรับให้สว่าง</span>
+            </div>
+        </div>
+
+        <div class="bg-white border-t border-gray-100 py-3 px-4 flex justify-between items-center text-xs text-gray-600">
+            <button onclick="alert('ครอบตัดภาพ')" class="flex flex-col items-center space-y-1"><i class="fa-solid fa-crop text-base"></i><span>ครอบตัด</span></button>
+            <button onclick="alert('ปรับแต่งสี')" class="flex flex-col items-center space-y-1"><i class="fa-solid fa-palette text-base"></i><span>สี</span></button>
+            <button onclick="alert('ทำความสะอาดรอยเปื้อน')" class="flex flex-col items-center space-y-1"><i class="fa-solid fa-wand-magic-sparkles text-base"></i><span>ทำความสะอาด</span></button>
+            <button onclick="alert('ลงลายมือชื่อ')" class="flex flex-col items-center space-y-1"><i class="fa-solid fa-signature text-base"></i><span>ลงชื่อ</span></button>
+            <button onclick="alert('แปลงข้อความ OCR')" class="flex flex-col items-center space-y-1"><i class="fa-solid fa-font text-base"></i><span>รูจำ</span></button>
+        </div>
+
+        <div class="bg-white border-t border-gray-100 py-3 px-6 flex justify-between items-center font-medium">
+            <button onclick="alert('ส่งออกไฟล์สำเร็จ')" class="text-blue-500 text-sm">ส่งออก</button>
+            <button onclick="saveDocument()" class="bg-blue-500 text-white px-8 py-2.5 rounded-full text-sm shadow-md hover:bg-blue-600 transition">บันทึก</button>
+        </div>
+    </div>
+
+    <script>
+        function toggleViewMode() { alert('สลับมุมมองเรียบร้อย'); }
+        function openFolder(name) { alert('เปิดโฟลเดอร์: ' + name); }
+        function openCameraScreen() {
+            document.getElementById('screen-home').classList.add('hidden');
+            document.getElementById('screen-camera').classList.remove('hidden');
+        }
+        function closeCameraScreen() {
+            document.getElementById('screen-camera').classList.add('hidden');
+            document.getElementById('screen-home').classList.remove('hidden');
+        }
+        function capturePhoto() {
+            alert('ถ่ายภาพเอกสารสำเร็จ!');
+            document.getElementById('screen-camera').classList.add('hidden');
+            document.getElementById('screen-editor').classList.remove('hidden');
+        }
+        function handleCameraCapture(e) {
+            if(e.target.files && e.target.files[0]) {
+                const reader = new FileReader();
+                reader.onload = function(evt) {
+                    document.getElementById('editor-preview-img').src = evt.target.result;
+                    document.getElementById('screen-camera').classList.add('hidden');
+                    document.getElementById('screen-editor').classList.remove('hidden');
+                };
+                reader.readAsDataURL(e.target.files[0]);
+            }
+        }
+        function handleFileSelect(e) { if(e.target.files.length > 0) alert('นำเข้าไฟล์เรียบร้อย'); }
+        function openEditorSample() {
+            document.getElementById('screen-home').classList.add('hidden');
+            document.getElementById('screen-editor').classList.remove('hidden');
+        }
+        function closeEditor() {
+            document.getElementById('screen-editor').classList.add('hidden');
+            document.getElementById('screen-home').classList.remove('hidden');
+        }
+        function setFilter(type, el) {
+            document.querySelectorAll('.filter-btn div').forEach(d => {
+                d.classList.remove('border-blue-500');
+                d.classList.add('border-transparent');
+            });
+            el.querySelector('div').classList.remove('border-transparent');
+            el.querySelector('div').classList.add('border-blue-500');
+        }
+        function saveDocument() {
+            alert('บันทึกเอกสารเรียบร้อยแล้ว!');
+            closeEditor();
+        }
+    </script>
+</body>
+</html>
