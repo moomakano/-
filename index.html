@@ -1,1 +1,12 @@
-<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Mobile Scanner Pro</title><link rel="manifest" href="manifest.json"><link rel="stylesheet" href="style.css"></head><body><div class="app"><header>📄 Mobile Scanner Pro</header><video id="v" autoplay playsinline></video><canvas id="c" hidden></canvas><div class="actions"><button id="cam">เปิดกล้อง</button><button id="shot">สแกน</button><button id="pdf">ดาวน์โหลดภาพ</button></div><img id="out"></div><script src="app.js"></script></body></html>
+<!doctype html><html lang='th'><head><meta charset='utf-8'>
+<meta name='viewport' content='width=device-width,initial-scale=1,viewport-fit=cover'>
+<title>Mobile Scanner Pro V2</title><link rel='manifest' href='manifest.json'>
+<link rel='stylesheet' href='style.css'></head>
+<body><div class='phone'><header><h1>Mobile Scanner Pro</h1><span>V2 Real Scanner</span></header>
+<main><section id='cameraView'><video id='video' autoplay playsinline></video><canvas id='canvas' hidden></canvas><img id='preview' hidden>
+<div class='frame'></div></section>
+<section id='editor' class='hidden'><h3>Preview</h3><div class='filters'>
+<button data-f='normal'>Original</button><button data-f='contrast'>Magic</button>
+<button data-f='gray'>Gray</button><button data-f='bw'>B&W</button></div></section></main>
+<footer><button id='open'>📷 เปิดกล้อง</button><button id='capture'>●</button>
+<button id='save'>⬇️ บันทึก</button></footer></div><script src='app.js'></script></body></html>
