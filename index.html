@@ -9,7 +9,6 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <meta name="theme-color" content="#2563eb">
     <style>
-        /* ลบ Scrollbar และล็อกหน้าจอไม่ให้เลื่อนเกินขอบ */
         html, body {
             margin: 0;
             padding: 0;
@@ -18,7 +17,7 @@
             overflow: hidden;
             position: fixed;
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-            background-color: #111827;
+            background-color: #f3f4f6;
         }
     </style>
 </head>
@@ -33,48 +32,27 @@
                 <button onclick="document.getElementById('gallery-input').click()" class="bg-blue-50 text-blue-600 px-4 py-2 rounded-full text-sm font-medium flex items-center space-x-2">
                     <i class="fa-solid fa-image"></i><span>เลือกรูปภาพ</span>
                 </button>
-                <input type="file" id="gallery-input" class="hidden" accept="image/*" onchange="handleImageSelect(event)">
             </header>
 
             <main class="flex-grow p-6 flex flex-col items-center justify-center text-center">
                 <div class="w-24 h-24 bg-blue-50 text-blue-600 rounded-full flex items-center justify-center text-4xl mb-4 shadow-inner">
                     <i class="fa-solid fa-wand-magic-sparkles"></i>
                 </div>
-                <h2 class="text-lg font-semibold text-gray-800 mb-2">ระบบลบรอยดินสอและสแกนอัจฉริยะ</h2>
-                <p class="text-xs text-gray-400 max-w-xs mb-8">ถ่ายภาพเอกสาร ระบบจะทำการเพิ่มความขาว คมชัด และกำจัดรอยดินสอออกให้อัตโนมัติ 100% พร้อมแปลงเป็น PDF</p>
+                <h2 class="text-lg font-semibold text-gray-800 mb-2">ลบรอยดินสออัตโนมัติ 100%</h2>
+                <p class="text-xs text-gray-400 max-w-xs mb-8">กดปุ่มกล้องด้านล่างเพื่อถ่ายภาพเอกสาร ระบบจะเปิดกล้องมือถือ ทำความสะอาดกระดาษ และแปลงเป็น PDF ทันที</p>
             </main>
 
-            <nav class="bg-white border-t border-gray-100 py-4 px-6 flex justify-center items-center">
-                <button onclick="openCamera()" class="bg-blue-600 text-white w-16 h-16 rounded-full shadow-lg flex items-center justify-center text-2xl hover:bg-blue-700 active:scale-95 transition">
+            <nav class="bg-white border-t border-gray-100 py-6 px-6 flex justify-center items-center">
+                <!-- ใช้ capture="environment" เพื่อบังคับเปิดกล้องหลังแบบโหมดถ่ายรูป -->
+                <button onclick="document.getElementById('camera-input').click()" class="bg-blue-600 text-white w-20 h-20 rounded-full shadow-lg flex items-center justify-center text-3xl hover:bg-blue-700 active:scale-95 transition">
                     <i class="fa-solid fa-camera"></i>
                 </button>
+                <input type="file" id="camera-input" class="hidden" accept="image/*" capture="environment" onchange="handleImageProcess(event)">
+                <input type="file" id="gallery-input" class="hidden" accept="image/*" onchange="handleImageProcess(event)">
             </nav>
         </div>
 
-        <!-- 2. หน้าจอถ่ายภาพ (Camera) -->
-        <div id="screen-camera" class="hidden flex flex-col h-full absolute inset-0 bg-black z-20">
-            <div class="p-4 flex justify-between items-center text-white z-10">
-                <button onclick="closeCamera()" class="w-10 h-10 rounded-full bg-white/20 flex items-center justify-center text-lg"><i class="fa-solid fa-xmark"></i></button>
-                <span class="text-sm font-medium">จัดเอกสารให้อยู่ในกรอบ</span>
-                <div class="w-10"></div>
-            </div>
-
-            <div class="flex-grow relative flex items-center justify-center overflow-hidden">
-                <video id="camera-stream" autoplay playsinline class="absolute inset-0 w-full h-full object-cover"></video>
-                <canvas id="capture-canvas" class="hidden"></canvas>
-                <div class="border-2 border-blue-400 rounded-xl w-4/5 h-3/5 absolute pointer-events-none shadow-2xl"></div>
-            </div>
-
-            <div class="p-6 bg-black/80 flex justify-around items-center z-10">
-                <div class="w-10"></div>
-                <button onclick="takeSnapshot()" class="w-16 h-16 rounded-full border-4 border-white bg-white flex items-center justify-center active:scale-90 transition">
-                    <div class="w-12 h-12 bg-blue-600 rounded-full"></div>
-                </button>
-                <button onclick="switchCamera()" class="w-10 h-10 rounded-full bg-white/20 text-white flex items-center justify-center text-sm"><i class="fa-solid fa-rotate"></i></button>
-            </div>
-        </div>
-
-        <!-- 3. หน้าจอปรับแต่งและแสดงผล (Editor) -->
+        <!-- 2. หน้าจอปรับแต่งและแสดงผล (Editor) -->
         <div id="screen-editor" class="hidden flex flex-col h-full absolute inset-0 bg-white z-30">
             <header class="px-4 py-3 flex justify-between items-center border-b border-gray-100">
                 <button onclick="backToHome()" class="text-gray-600 text-base px-2 py-1"><i class="fa-solid fa-chevron-left"></i> ย้อนกลับ</button>
@@ -100,73 +78,50 @@
 
     </div>
 
-    <!-- Hidden Canvas สำหรับประมวลผลลบรอยดินสออัตโนมัติ -->
+    <!-- Hidden Canvas สำหรับประมวลผลลบรอยดินสอ -->
     <canvas id="process-canvas" class="hidden"></canvas>
 
     <script>
-        let mediaStream = null;
-        let useFrontCamera = false;
-
-        async function openCamera() {
-            document.getElementById('screen-home').classList.add('hidden');
-            document.getElementById('screen-camera').classList.remove('hidden');
-            startCameraStream();
-        }
-
-        async function startCameraStream() {
-            if (mediaStream) {
-                mediaStream.getTracks().forEach(track => track.stop());
-            }
-            try {
-                mediaStream = await navigator.mediaDevices.getUserMedia({ 
-                    video: { facingMode: useFrontCamera ? 'user' : 'environment' } 
-                });
-                document.getElementById('camera-stream').srcObject = mediaStream;
-            } catch (err) {
-                alert('ไม่สามารถเปิดกล้องได้ กรุณาตรวจสอบสิทธิ์การใช้งานกล้อง');
-                closeCamera();
-            }
-        }
-
-        function switchCamera() {
-            useFrontCamera = !useFrontCamera;
-            startCameraStream();
-        }
-
-        function closeCamera() {
-            if (mediaStream) {
-                mediaStream.getTracks().forEach(track => track.stop());
-                mediaStream = null;
-            }
-            document.getElementById('screen-camera').classList.add('hidden');
-            document.getElementById('screen-home').classList.remove('hidden');
-        }
-
-        function takeSnapshot() {
-            const video = document.getElementById('camera-stream');
-            const canvas = document.getElementById('capture-canvas');
-            canvas.width = video.videoWidth || 1280;
-            canvas.height = video.videoHeight || 720;
-            const ctx = canvas.getContext('2d');
-            ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-            
-            processProScan(canvas);
-            closeCamera();
-            document.getElementById('screen-editor').classList.remove('hidden');
-        }
-
-        function handleImageSelect(e) {
+        function handleImageProcess(e) {
             if (e.target.files && e.target.files[0]) {
                 const reader = new FileReader();
                 reader.onload = function(evt) {
                     const img = new Image();
                     img.onload = function() {
-                        const canvas = document.getElementById('capture-canvas');
+                        const canvas = document.getElementById('process-canvas');
                         canvas.width = img.width;
                         canvas.height = img.height;
                         const ctx = canvas.getContext('2d');
+                        
                         ctx.drawImage(img, 0, 0);
-                        processProScan(canvas);
+                        const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+                        const data = imgData.data;
+
+                        // อัลกอริทึมลบรอยดินสอและดันพื้นหลังให้ขาวสะอาด 100%
+                        for (let i = 0; i < data.length; i += 4) {
+                            let r = data[i];
+                            let g = data[i+1];
+                            let b = data[i+2];
+
+                            let avg = (r * 0.3) + (g * 0.59) + (b * 0.11);
+
+                            if (avg > 165) {
+                                data[i] = 255;   
+                                data[i+1] = 255; 
+                                data[i+2] = 255; 
+                            } else {
+                                let darkFactor = 0.75; // เพิ่มความเข้มให้ตัวหนังสือ
+                                data[i] = Math.min(255, r * darkFactor);
+                                data[i+1] = Math.min(255, g * darkFactor);
+                                data[i+2] = Math.min(255, b * darkFactor);
+                            }
+                        }
+
+                        ctx.putImageData(imgData, 0, 0);
+                        document.getElementById('preview-image').src = canvas.toDataURL('image/jpeg', 0.95);
+                        
+                        // สลับมาหน้าจอพรีวิว
+                        document.getElementById('screen-home').classList.add('hidden');
                         document.getElementById('screen-editor').classList.remove('hidden');
                     };
                     img.src = evt.target.result;
@@ -175,48 +130,12 @@
             }
         }
 
-        // ระบบสแกนโปร: ประมวลผลพิกเซล ขจัดรอยดินสอ/พื้นหลังเทา ให้กระดาษขาวสะอาด
-        function processProScan(sourceCanvas) {
-            const canvas = document.getElementById('process-canvas');
-            canvas.width = sourceCanvas.width;
-            canvas.height = sourceCanvas.height;
-            const ctx = canvas.getContext('2d');
-            
-            ctx.drawImage(sourceCanvas, 0, 0);
-            const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-            const data = imgData.data;
-
-            // อัลกอริทึมลบรอยดินสอ (Thresholding & Contrast Boost)
-            for (let i = 0; i < data.length; i += 4) {
-                let r = data[i];
-                let g = data[i+1];
-                let b = data[i+2];
-
-                // แปลงเป็น Grayscale
-                let avg = (r * 0.3) + (g * 0.59) + (b * 0.11);
-
-                // ดึงรอยดินสอหรือรอยจางออก (ถ้าความสว่างมากกว่าค่ากำหนด จะดันให้เป็นสีขาวสะอาด 100%)
-                // และถ้าเป็นตัวหนังสือเข้ม จะดึงให้คมชัดเป็นสีดำสนิท
-                if (avg > 175) {
-                    data[i] = 255;   // R
-                    data[i+1] = 255; // G
-                    data[i+2] = 255; // B
-                } else {
-                    // ทำให้ตัวหนังสือเข้มคมชัด และลบรอยดินสอสีเทาจางๆ ออก
-                    let darkFactor = 0.8;
-                    data[i] = Math.min(255, r * darkFactor);
-                    data[i+1] = Math.min(255, g * darkFactor);
-                    data[i+2] = Math.min(255, b * darkFactor);
-                }
-            }
-
-            ctx.putImageData(imgData, 0, 0);
-            document.getElementById('preview-image').src = canvas.toDataURL('image/jpeg', 0.95);
-        }
-
         function backToHome() {
             document.getElementById('screen-editor').classList.add('hidden');
             document.getElementById('screen-home').classList.remove('hidden');
+            // รีเซ็ตค่า input เพื่อให้สามารถถ่ายรูปซ้ำรูปเดิมได้
+            document.getElementById('camera-input').value = '';
+            document.getElementById('gallery-input').value = '';
         }
 
         function downloadPDF() {
