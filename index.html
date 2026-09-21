@@ -3,83 +3,99 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Mobile Document Scanner Pro</title>
+    <title>Real Mobile Scanner Pro</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-    <meta name="theme-color" content="#2563eb">
+    <meta name="theme-color" content="#111827">
     <style>
         html, body {
             margin: 0; padding: 0; width: 100vw; height: 100vh; overflow: hidden; position: fixed;
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background-color: #111827;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background-color: #000;
         }
     </style>
 </head>
 <body class="flex justify-center items-center">
 
-    <div class="w-full max-w-md h-full bg-white flex flex-col justify-between relative shadow-2xl overflow-hidden">
+    <div class="w-full max-w-md h-full bg-black flex flex-col justify-between relative shadow-2xl overflow-hidden text-white">
 
-        <!-- 1. หน้าจอหลัก (Home / Gallery List) -->
-        <div id="screen-home" class="flex flex-col h-full absolute inset-0 bg-white z-10">
-            <header class="px-6 pt-10 pb-4 bg-white flex justify-between items-center border-b border-gray-100">
+        <!-- 1. หน้าจอหลัก (แกลเลอรีหน้ารวม) -->
+        <div id="screen-home" class="flex flex-col h-full absolute inset-0 bg-gray-950 z-10">
+            <header class="px-6 pt-10 pb-4 bg-gray-900 flex justify-between items-center border-b border-gray-800">
                 <div>
-                    <h1 class="text-2xl font-bold text-gray-800">Mobile Scanner</h1>
-                    <span id="doc-count" class="text-xs text-gray-400">เอกสารทั้งหมด: 0 หน้า</span>
+                    <h1 class="text-xl font-bold tracking-tight">Mobile Scanner Pro</h1>
+                    <span id="doc-count" class="text-xs text-gray-400">เอกสาร: 0 หน้า</span>
                 </div>
-                <button onclick="document.getElementById('gallery-input').click()" class="bg-blue-50 text-blue-600 px-4 py-2 rounded-full text-sm font-medium flex items-center space-x-2">
-                    <i class="fa-solid fa-image"></i><span>นำเข้ารูป</span>
+                <button onclick="openCameraScreen()" class="bg-blue-600 text-white px-4 py-2 rounded-full text-sm font-medium flex items-center space-x-2 shadow-lg">
+                    <i class="fa-solid fa-camera"></i><span>เปิดกล้องสแกน</span>
                 </button>
-                <input type="file" id="gallery-input" class="hidden" accept="image/*" multiple onchange="handleImageImport(event)">
             </header>
 
             <main class="flex-grow p-4 overflow-y-auto">
                 <div id="thumbnail-grid" class="grid grid-cols-2 gap-3">
-                    <div id="empty-state" class="col-span-2 flex flex-col items-center justify-center py-20 text-gray-300">
-                        <i class="fa-solid fa-folder-open text-5xl mb-3"></i>
-                        <p class="text-sm">ยังไม่มีเอกสารสแกน กดปุ่มกล้องด้านล่างเพื่อเริ่ม</p>
+                    <div id="empty-state" class="col-span-2 flex flex-col items-center justify-center py-24 text-gray-500">
+                        <i class="fa-solid fa-file-lines text-5xl mb-3 opacity-40"></i>
+                        <p class="text-sm">ยังไม่มีเอกสาร กดปุ่ม "เปิดกล้องสแกน" ด้านบน</p>
                     </div>
                 </div>
             </main>
 
-            <nav class="bg-white border-t border-gray-100 py-4 px-6 flex justify-around items-center z-20">
-                <button onclick="document.getElementById('camera-input').click()" class="bg-blue-600 text-white w-16 h-16 rounded-full shadow-lg flex items-center justify-center text-2xl active:scale-95 transition">
-                    <i class="fa-solid fa-camera"></i>
+            <footer class="bg-gray-900 border-t border-gray-800 p-4 flex justify-between items-center">
+                <button onclick="document.getElementById('gallery-input').click()" class="text-gray-300 text-sm flex items-center space-x-2">
+                    <i class="fa-solid fa-image text-lg"></i><span>นำเข้ารูปภาพ</span>
                 </button>
-                <button onclick="generatePDF()" class="bg-emerald-600 text-white px-6 py-3 rounded-full shadow-lg font-medium text-sm flex items-center space-x-2 active:scale-95 transition">
-                    <i class="fa-solid fa-file-pdf"></i><span>บันทึกเป็น PDF</span>
+                <button onclick="generatePDF()" id="pdf-btn" class="hidden bg-emerald-600 text-white px-5 py-2.5 rounded-full text-sm font-medium flex items-center space-x-2 shadow-lg">
+                    <i class="fa-solid fa-file-pdf"></i><span>บันทึก PDF</span>
                 </button>
-                <input type="file" id="camera-input" class="hidden" accept="image/*" capture="environment" onchange="handleImageImport(event)">
-            </nav>
+                <input type="file" id="gallery-input" class="hidden" accept="image/*" multiple onchange="handleGalleryImport(event)">
+            </footer>
         </div>
 
-        <!-- 2. หน้าจอปรับแต่งเอกสาร (Editor & Magic Filter) -->
-        <div id="screen-editor" class="hidden flex flex-col h-full absolute inset-0 bg-gray-900 z-30 text-white">
-            <header class="px-4 py-3 flex justify-between items-center border-b border-gray-800">
-                <button onclick="closeEditor()" class="text-gray-300 text-sm"><i class="fa-solid fa-xmark text-lg"></i> ยกเลิก</button>
-                <h2 class="font-semibold text-sm">ปรับแต่งและลบรอยดินสอ</h2>
-                <button onclick="saveEditedPage()" class="text-blue-400 font-semibold text-sm">เสร็จสิ้น</button>
+        <!-- 2. หน้าจอเปิดกล้องสตรีมสด (Live Camera & Document Box) -->
+        <div id="screen-camera" class="hidden flex flex-col h-full absolute inset-0 bg-black z-20">
+            <header class="absolute top-0 inset-x-0 p-4 flex justify-between items-center z-30 bg-gradient-to-b from-black/80 to-transparent">
+                <button onclick="closeCameraScreen()" class="text-white text-lg p-2"><i class="fa-solid fa-xmark"></i></button>
+                <span class="text-xs tracking-widest uppercase font-semibold text-blue-400 bg-black/40 px-3 py-1 rounded-full border border-blue-500/30">โหมดสแกนเอกสาร</span>
+                <div class="w-8"></div>
             </header>
 
-            <main class="flex-grow p-4 flex items-center justify-center overflow-hidden relative">
-                <img id="editor-image" class="max-h-[65vh] w-auto object-contain rounded shadow-lg" alt="Preview">
+            <!-- พื้นที่พรีวิวกล้องสดพร้อมกรอบเล็งเอกสาร -->
+            <div class="relative flex-grow flex items-center justify-center overflow-hidden">
+                <video id="camera-stream" autoplay playsinline class="absolute inset-0 w-full h-full object-cover"></video>
+                
+                <!-- กรอบจำลองตำแหน่งเอกสารแบบ Mobile Scanner -->
+                <div class="absolute w-[82%] h-[75%] border-2 border-dashed border-blue-400/80 rounded-2xl pointer-events-none flex flex-col justify-between p-3 shadow-[0_0_30px_rgba(37,99,235,0.3)]">
+                    <div class="flex justify-between"><div class="w-6 h-6 border-t-4 border-l-4 border-blue-500"></div><div class="w-6 h-6 border-t-4 border-r-4 border-blue-500"></div></div>
+                    <div class="flex justify-between"><div class="w-6 h-6 border-b-4 border-l-4 border-blue-500"></div><div class="w-6 h-6 border-b-4 border-r-4 border-blue-500"></div></div>
+                </div>
+            </div>
+
+            <footer class="p-6 bg-black flex justify-center items-center z-30">
+                <button onclick="captureImage()" class="w-20 h-20 bg-white rounded-full border-4 border-gray-400 flex items-center justify-center shadow-xl active:scale-95 transition">
+                    <div class="w-16 h-16 bg-blue-600 rounded-full"></div>
+                </button>
+            </footer>
+        </div>
+
+        <!-- 3. หน้าจอปรับแต่งฟิลเตอร์ลบรอยดินสอ -->
+        <div id="screen-editor" class="hidden flex flex-col h-full absolute inset-0 bg-gray-950 z-30">
+            <header class="px-4 py-3 flex justify-between items-center border-b border-gray-800">
+                <button onclick="backToHomeFromEditor()" class="text-gray-400 text-sm">ยกเลิก</button>
+                <h2 class="font-semibold text-sm">ปรับแต่งเอกสาร</h2>
+                <button onclick="saveProcessedPage()" class="text-blue-400 font-semibold text-sm">เสร็จสิ้น</button>
+            </header>
+
+            <main class="flex-grow p-4 flex items-center justify-center overflow-hidden">
+                <img id="editor-image" class="max-h-[70vh] w-auto object-contain rounded shadow-lg border border-gray-800" alt="Preview">
             </main>
 
-            <!-- แถบเครื่องมือ Mobile Scanner Pro -->
-            <div class="bg-black/90 p-4 border-t border-gray-800 space-y-3">
-                <div class="flex justify-around text-xs text-gray-300">
-                    <button onclick="applyFilter('magic')" class="flex flex-col items-center space-y-1 text-blue-400">
-                        <i class="fa-solid fa-wand-magic-sparkles text-base"></i><span>เมจิก (ลบรอยดินสอ)</span>
-                    </button>
-                    <button onclick="applyFilter('bw')" class="flex flex-col items-center space-y-1">
-                        <i class="fa-solid fa-circle-half-stroke text-base"></i><span>ขาวดำเข้ม</span>
-                    </button>
-                    <button onclick="applyFilter('original')" class="flex flex-col items-center space-y-1">
-                        <i class="fa-solid fa-image text-base"></i><span>ต้นฉบับ</span>
-                    </button>
-                    <button onclick="rotateImage()" class="flex flex-col items-center space-y-1">
-                        <i class="fa-solid fa-rotate-right text-base"></i><span>หมุนภาพ</span>
-                    </button>
-                </div>
+            <div class="p-4 bg-gray-900 border-t border-gray-800 flex justify-around text-xs">
+                <button onclick="applyMagicFilter()" class="flex flex-col items-center space-y-1 text-blue-400">
+                    <i class="fa-solid fa-wand-magic-sparkles text-base"></i><span>เมจิกลบรอยดินสอ</span>
+                </button>
+                <button onclick="applyBwFilter()" class="flex flex-col items-center space-y-1 text-gray-400">
+                    <i class="fa-solid fa-circle-half-stroke text-base"></i><span>ขาวดำคมชัด</span>
+                </button>
             </div>
         </div>
 
@@ -89,21 +105,63 @@
 
     <script>
         let scannedPages = [];
-        let currentEditIndex = null;
-        let originalImageObj = new Image();
-        let currentRotation = 0;
+        let mediaStream = null;
+        let tempRawImage = new Image();
 
-        function handleImageImport(e) {
+        async function openCameraScreen() {
+            document.getElementById('screen-home').classList.add('hidden');
+            document.getElementById('screen-camera').classList.remove('hidden');
+            try {
+                mediaStream = await navigator.mediaDevices.getUserMedia({
+                    video: { facingMode: { exact: "environment" } }, audio: false
+                });
+            } catch (e) {
+                try {
+                    mediaStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
+                } catch (err) {
+                    alert('ไม่สามารถเปิดกล้องได้ กรุณาตรวจสอบการอนุญาตใช้งานกล้อง');
+                    closeCameraScreen();
+                    return;
+                }
+            }
+            document.getElementById('camera-stream').srcObject = mediaStream;
+        }
+
+        function closeCameraScreen() {
+            if (mediaStream) {
+                mediaStream.getTracks().forEach(track => track.stop());
+                mediaStream = null;
+            }
+            document.getElementById('screen-camera').classList.add('hidden');
+            document.getElementById('screen-home').classList.remove('hidden');
+        }
+
+        function captureImage() {
+            const video = document.getElementById('camera-stream');
+            const canvas = document.getElementById('process-canvas');
+            canvas.width = video.videoWidth || 1280;
+            canvas.height = video.videoHeight || 720;
+            const ctx = canvas.getContext('2d');
+            ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+            
+            tempRawImage.src = canvas.toDataURL('image/jpeg', 0.95);
+            closeCameraScreen();
+            
+            // เปิดหน้าจอแต่งภาพโดยใช้เมจิกฟิลเตอร์อัตโนมัติ
+            openEditorWithImage(tempRawImage.src);
+        }
+
+        function handleGalleryImport(e) {
             if (e.target.files && e.target.files.length > 0) {
                 Array.from(e.target.files).forEach(file => {
                     const reader = new FileReader();
                     reader.onload = function(evt) {
                         const img = new Image();
                         img.onload = function() {
-                            // ประมวลผลลบรอยดินสออัตโนมัติ (Magic Mode เริ่มต้น)
-                            const processedData = processMagicFilter(img, 0);
-                            scannedPages.push(processedData);
-                            updateThumbnailGrid();
+                            tempRawImage.src = evt.target.result;
+                            const processed = processFilter(tempRawImage, 'magic');
+                            scannedPages.push(processed);
+                            updateUI();
                         };
                         img.src = evt.target.result;
                     };
@@ -113,25 +171,26 @@
             }
         }
 
-        // ระบบอัลกอริทึมลบรอยดินสอและดันพื้นหลังขาวสะอาด 100%
-        function processMagicFilter(img, rotation = 0) {
-            const canvas = document.getElementById('process-canvas');
-            const ctx = canvas.getContext('2d');
-            
-            if (rotation === 90 || rotation === 270) {
-                canvas.width = img.height;
-                canvas.height = img.width;
-            } else {
-                canvas.width = img.width;
-                canvas.height = img.height;
-            }
+        function openEditorWithImage(src) {
+            tempRawImage.src = src;
+            document.getElementById('editor-image').src = processFilter(tempRawImage, 'magic');
+            document.getElementById('screen-editor').classList.remove('hidden');
+        }
 
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
-            ctx.save();
-            ctx.translate(canvas.width / 2, canvas.height / 2);
-            ctx.rotate((rotation * Math.PI) / 180);
-            ctx.drawImage(img, -img.width / 2, -img.height / 2);
-            ctx.restore();
+        function applyMagicFilter() {
+            document.getElementById('editor-image').src = processFilter(tempRawImage, 'magic');
+        }
+
+        function applyBwFilter() {
+            document.getElementById('editor-image').src = processFilter(tempRawImage, 'bw');
+        }
+
+        function processFilter(imgObj, type) {
+            const canvas = document.getElementById('process-canvas');
+            canvas.width = imgObj.width;
+            canvas.height = imgObj.height;
+            const ctx = canvas.getContext('2d');
+            ctx.drawImage(imgObj, 0, 0);
 
             const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
             const data = imgData.data;
@@ -140,103 +199,74 @@
                 let r = data[i], g = data[i+1], b = data[i+2];
                 let avg = (r * 0.3) + (g * 0.59) + (b * 0.11);
 
-                // ดึงรอยดินสอจางๆ ออก และปรับตัวหนังสือให้คมชัด
-                if (avg > 165) {
-                    data[i] = 255; data[i+1] = 255; data[i+2] = 255;
+                if (type === 'magic') {
+                    // ดึงรอยดินสอออกและดันพื้นหลังขาวสะอาด
+                    if (avg > 160) {
+                        data[i] = 255; data[i+1] = 255; data[i+2] = 255;
+                    } else {
+                        data[i] = Math.min(255, r * 0.6);
+                        data[i+1] = Math.min(255, g * 0.6);
+                        data[i+2] = Math.min(255, b * 0.6);
+                    }
                 } else {
-                    data[i] = Math.min(255, r * 0.7);
-                    data[i+1] = Math.min(255, g * 0.7);
-                    data[i+2] = Math.min(255, b * 0.7);
+                    let v = avg > 140 ? 255 : 0;
+                    data[i] = v; data[i+1] = v; data[i+2] = v;
                 }
             }
             ctx.putImageData(imgData, 0, 0);
             return canvas.toDataURL('image/jpeg', 0.92);
         }
 
-        function updateThumbnailGrid() {
-            const grid = document.getElementById('thumbnail-grid');
-            document.getElementById('doc-count').innerText = 'เอกสารทั้งหมด: ' + scannedPages.length + ' หน้า';
-            
-            if (scannedPages.length === 0) {
-                grid.innerHTML = `
-                    <div id="empty-state" class="col-span-2 flex flex-col items-center justify-center py-20 text-gray-300">
-                        <i class="fa-solid fa-folder-open text-5xl mb-3"></i>
-                        <p class="text-sm">ยังไม่มีเอกสารสแกน กดปุ่มกล้องด้านล่างเพื่อเริ่ม</p>
-                    </div>`;
-                return;
-            }
-
-            grid.innerHTML = '';
-            scannedPages.forEach((page, index) => {
-                grid.innerHTML += `
-                    <div class="relative bg-gray-100 p-2 rounded-xl border border-gray-200 flex flex-col items-center shadow-sm">
-                        <img src="${page}" class="h-32 object-contain rounded cursor-pointer" onclick="openEditor(${index})">
-                        <div class="flex justify-between w-full px-2 mt-2 text-xs text-gray-600">
-                            <span>หน้า ${index + 1}</span>
-                            <button onclick="deletePage(${index})" class="text-red-500"><i class="fa-solid fa-trash"></i></button>
-                        </div>
-                    </div>`;
-            });
-        }
-
-        function openEditor(index) {
-            currentEditIndex = index;
-            currentRotation = 0;
-            originalImageObj.src = scannedPages[index];
-            document.getElementById('editor-image').src = scannedPages[index];
-            document.getElementById('screen-home').classList.add('hidden');
-            document.getElementById('screen-editor').classList.remove('hidden');
-        }
-
-        function closeEditor() {
+        function saveProcessedPage() {
+            scannedPages.push(document.getElementById('editor-image').src);
             document.getElementById('screen-editor').classList.add('hidden');
-            document.getElementById('screen-home').classList.remove('hidden');
+            updateUI();
         }
 
-        function rotateImage() {
-            currentRotation = (currentRotation + 90) % 360;
-            const newData = processMagicFilter(originalImageObj, currentRotation);
-            document.getElementById('editor-image').src = newData;
+        function backToHomeFromEditor() {
+            document.getElementById('screen-editor').classList.add('hidden');
         }
 
-        function applyFilter(type) {
-            if (type === 'magic' || type === 'bw') {
-                const newData = processMagicFilter(originalImageObj, currentRotation);
-                document.getElementById('editor-image').src = newData;
+        function updateUI() {
+            const grid = document.getElementById('thumbnail-grid');
+            document.getElementById('doc-count').innerText = 'เอกสาร: ' + scannedPages.length + ' หน้า';
+            
+            if (scannedPages.length > 0) {
+                document.getElementById('pdf-btn').classList.remove('hidden');
+                grid.innerHTML = '';
+                scannedPages.forEach((page, index) => {
+                    grid.innerHTML += `
+                        <div class="relative bg-gray-900 p-2 rounded-xl border border-gray-800 flex flex-col items-center">
+                            <img src="${page}" class="h-32 object-contain rounded">
+                            <div class="flex justify-between w-full px-2 mt-2 text-xs text-gray-400">
+                                <span>หน้า ${index + 1}</span>
+                                <button onclick="deletePage(${index})" class="text-red-400"><i class="fa-solid fa-trash"></i></button>
+                            </div>
+                        </div>`;
+                });
             } else {
-                const canvas = document.getElementById('process-canvas');
-                const ctx = canvas.getContext('2d');
-                canvas.width = originalImageObj.width;
-                canvas.height = originalImageObj.height;
-                ctx.drawImage(originalImageObj, 0, 0);
-                document.getElementById('editor-image').src = canvas.toDataURL('image/jpeg', 0.92);
+                document.getElementById('pdf-btn').classList.add('hidden');
+                grid.innerHTML = `
+                    <div id="empty-state" class="col-span-2 flex flex-col items-center justify-center py-24 text-gray-500">
+                        <i class="fa-solid fa-file-lines text-5xl mb-3 opacity-40"></i>
+                        <p class="text-sm">ยังไม่มีเอกสาร กดปุ่ม "เปิดกล้องสแกน" ด้านบน</p>
+                    </div>`;
             }
-        }
-
-        function saveEditedPage() {
-            scannedPages[currentEditIndex] = document.getElementById('editor-image').src;
-            updateThumbnailGrid();
-            closeEditor();
         }
 
         function deletePage(index) {
             scannedPages.splice(index, 1);
-            updateThumbnailGrid();
+            updateUI();
         }
 
         function generatePDF() {
-            if (scannedPages.length === 0) {
-                alert('กรุณาเพิ่มเอกสารอย่างน้อย 1 หน้าก่อนสร้าง PDF');
-                return;
-            }
+            if (scannedPages.length === 0) return;
             const { jsPDF } = window.jspdf;
             const doc = new jsPDF();
-            
             scannedPages.forEach((pageData, index) => {
                 if (index > 0) doc.addPage();
                 doc.addImage(pageData, 'JPEG', 10, 10, 190, 277);
             });
-
             doc.save('MobileScanner-' + Date.now() + '.pdf');
         }
     </script>
