@@ -1351,10 +1351,9 @@ function removeClass(id){
   deleteTarget=(st.classes||[]).find(c=>c.id===id);
   if(!deleteTarget) return;
 
-  // สร้าง repeatId ให้ข้อมูลเก่า
   const groups={};
   (st.classes||[]).forEach(c=>{
-    const k=[c.title||'',c.teacher||'',c.time||'',c.loc||''].join('|');
+    const k=[c.title||'',c.start||'',c.end||'',c.teacher||''].join('|');
     (groups[k]=groups[k]||[]).push(c);
   });
   Object.values(groups).forEach(list=>{
@@ -1364,12 +1363,10 @@ function removeClass(id){
     }
   });
 
-  const sheet=document.getElementById('deleteSheet');
-  const back=document.getElementById('deleteBackdrop');
+  document.getElementById('deleteBackdrop').classList.add('show');
+  document.getElementById('deleteSheet').classList.add('show');
   document.getElementById('btnDeleteAll').style.display=deleteTarget.repeatId?'block':'none';
   document.getElementById('btnDeleteFuture').style.display=deleteTarget.repeatId?'block':'none';
-  sheet.classList.add('show');
-  back.classList.add('show');
 }
 
 
