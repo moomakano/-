@@ -9,6 +9,11 @@
   <link rel="manifest" href="manifest.json">
   <meta name="theme-color" content="#ff5e8e">
   <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="ตารางเรียน">
+  <meta name="format-detection" content="telephone=no">
+  <meta name="apple-touch-fullscreen" content="yes">
   
   <!-- iOS / Apple Specific Meta Tags -->
   <meta name="apple-mobile-web-app-capable" content="yes">
@@ -38,6 +43,7 @@
     }
 
     * {
+      -webkit-box-sizing:border-box;
       box-sizing: border-box;
       margin: 0;
       padding: 0;
@@ -45,7 +51,7 @@
       user-select: none;
     }
 
-    body {
+    html{-webkit-text-size-adjust:100%;text-size-adjust:100%;overscroll-behavior:none;} body {
       font-family: 'Kanit', 'Prompt', sans-serif;
       background-color: var(--bg-color);
       color: var(--text-color);
@@ -1530,7 +1536,7 @@ function switchTab(tab) {
       });
     }
 
-    window.addEventListener('beforeinstallprompt', (e) => {
+    window.addEventListener && window.addEventListener('beforeinstallprompt', (e) => {
       e.preventDefault();
       deferredPrompt = e;
       document.getElementById('pwaInstallCard').style.display = 'block';
@@ -1552,6 +1558,18 @@ function switchTab(tab) {
     // Initialize App
     renderStudentSelector();
     renderCalendar();
-  </script>
+  
+// Safari/PWA compatibility
+(function(){
+  document.addEventListener('touchstart', function(){}, {passive:true});
+  window.addEventListener('pageshow', function(e){ if(e.persisted){ renderCalendar(); renderSchedule(); }});
+  if('serviceWorker' in navigator){
+    window.addEventListener('load', function(){
+      navigator.serviceWorker.register('./sw.js',{scope:'./'}).catch(()=>{});
+    });
+  }
+})();
+
+</script>
 </body>
 </html>
