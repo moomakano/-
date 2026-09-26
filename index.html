@@ -9,11 +9,6 @@
   <link rel="manifest" href="manifest.json">
   <meta name="theme-color" content="#ff5e8e">
   <meta name="mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-  <meta name="apple-mobile-web-app-title" content="ตารางเรียน">
-  <meta name="format-detection" content="telephone=no">
-  <meta name="apple-touch-fullscreen" content="yes">
   
   <!-- iOS / Apple Specific Meta Tags -->
   <meta name="apple-mobile-web-app-capable" content="yes">
@@ -43,7 +38,6 @@
     }
 
     * {
-      -webkit-box-sizing:border-box;
       box-sizing: border-box;
       margin: 0;
       padding: 0;
@@ -51,7 +45,7 @@
       user-select: none;
     }
 
-    html{-webkit-text-size-adjust:100%;text-size-adjust:100%;overscroll-behavior:none;} body {
+    body {
       font-family: 'Kanit', 'Prompt', sans-serif;
       background-color: var(--bg-color);
       color: var(--text-color);
@@ -799,7 +793,7 @@
 
       <div class="section-header">
         <div class="date-title" id="selectedDateTitle">📌 วิชาที่ต้องเรียนวันนี้</div>
-        <button class="add-btn" onclick="copyWeekSchedule()" style="background:#4caf50;margin-right:8px;"><i class="fa-solid fa-copy"></i> คัดลอกทั้งสัปดาห์</button><button class="add-btn" onclick="openModal('classModal')">
+        <button class="add-btn" onclick="openModal('classModal')">
           <i class="fa-solid fa-plus"></i> เพิ่มวิชา
         </button>
       </div>
@@ -939,22 +933,17 @@
         <input type="text" id="inputSubject" placeholder="เช่น ✏️ ภาษาไทย">
       </div>
       <div class="form-group">
-<label>เวลาเรียน</label>
+        <label>เวลาเรียน</label>
 <div style="display:flex;gap:10px">
 <div style="flex:1"><label style="font-size:.75rem;color:#888">เริ่ม</label><input type="time" id="inputStartTime" step="300" style="-webkit-appearance:auto;width:100%;padding:10px;border:1px solid #ddd;border-radius:12px"></div>
 <div style="flex:1"><label style="font-size:.75rem;color:#888">สิ้นสุด</label><input type="time" id="inputEndTime" step="300" style="-webkit-appearance:auto;width:100%;padding:10px;border:1px solid #ddd;border-radius:12px"></div>
-</div></div>
+</div>
+      </div>
       <div class="form-group">
         <label>ชื่อครูผู้สอน</label>
         <input type="text" id="inputLoc" placeholder="เช่น ครูปาล์ม">
       </div>
       <div class="form-group">
-<label>ตั้งตารางประจำ</label>
-<select id="inputWeekday" style="width:100%;padding:10px;border:1px solid #ddd;border-radius:12px;font-family:inherit">
-<option value="once">เฉพาะวันนี้</option>
-<option value="0">ทุกวันอาทิตย์</option><option value="1">ทุกวันจันทร์</option><option value="2">ทุกวันอังคาร</option><option value="3">ทุกวันพุธ</option><option value="4">ทุกวันพฤหัส</option><option value="5">ทุกวันศุกร์</option><option value="6">ทุกวันเสาร์</option>
-</select></div>
-<div class="form-group">
         <label>ดาวที่จะได้รับเมื่อเรียนเสร็จ</label>
         <input type="number" id="inputStars" value="1" min="1">
       </div>
@@ -1002,7 +991,6 @@
     ];
 
     let currentStudentId = parseInt(localStorage.getItem('app_current_student')) || students[0].id;
-students.forEach(s=>{if(!s.recurring)s.recurring=[];});
 
     const thaiMonths = [
       "มกราคม", "กุมภาพันธ์", "มีนาคม", "เมษายน", "พฤษภาคม", "มิถุนายน",
@@ -1091,8 +1079,7 @@ students.forEach(s=>{if(!s.recurring)s.recurring=[];});
         if (thisKey === todayKey) dayEl.classList.add('today');
         if (thisKey === selectedKey) dayEl.classList.add('active');
 
-        let dayClasses=(st.classes||[]).filter(c=>c.dateStr===thisKey);
-        dayClasses=dayClasses.concat((st.recurring||[]).filter(r=>r.weekday===thisDate.getDay()));
+        const dayClasses = (st.classes || []).filter(c => c.dateStr === thisKey);
         if (dayClasses.length > 0) {
           const dot = document.createElement('span');
           dot.className = 'has-class-dot';
@@ -1160,10 +1147,7 @@ students.forEach(s=>{if(!s.recurring)s.recurring=[];});
 
       const st = getCurrentStudent();
       const targetKey = formatDateKey(selectedDate);
-      let dayClasses=(st.classes||[]).filter(c=>c.dateStr===targetKey);
-      (st.recurring||[]).filter(r=>r.weekday===selectedDate.getDay()).forEach(r=>{
-        dayClasses.push({id:'r'+r.id,title:r.title,time:r.time,loc:r.loc,reward:r.reward,done:false});
-      });
+      const dayClasses = (st.classes || []).filter(c => c.dateStr === targetKey);
 
       if (dayClasses.length === 0) {
         list.innerHTML = `
@@ -1315,7 +1299,7 @@ students.forEach(s=>{if(!s.recurring)s.recurring=[];});
       const title = document.getElementById('inputSubject').value.trim();
       const start=document.getElementById('inputStartTime').value;const end=document.getElementById('inputEndTime').value;const time=(start&&end)?`${start} - ${end} น.`:'';
       const loc = document.getElementById('inputLoc').value.trim();
-      const reward=parseInt(document.getElementById('inputStars').value)||1;const weekday=document.getElementById('inputWeekday').value;
+      const reward = parseInt(document.getElementById('inputStars').value) || 1;
 
       if (!title || !time) {
         showToast('⚠️ กรุณากรอกชื่อวิชาและเวลาเรียน');
@@ -1325,16 +1309,15 @@ students.forEach(s=>{if(!s.recurring)s.recurring=[];});
       const st = getCurrentStudent();
       if (!st.classes) st.classes = [];
 
-      if(weekday!=='once'){
-  st.recurring.push({id:Date.now(),weekday:+weekday,title,time,loc:loc||'ครูประจำวิชา',reward});
-}else st.classes.push({
+      st.classes.push({
         id: Date.now(),
         dateStr: formatDateKey(selectedDate),
         title: title,
         time: time,
         loc: loc || '📍 ห้องเรียน',
         reward: reward,
-        done:false});
+        done: false
+      });
 
       saveAppData();
       renderCalendar();
@@ -1343,11 +1326,11 @@ students.forEach(s=>{if(!s.recurring)s.recurring=[];});
       showToast('✨ เพิ่มวิชาเรียนเรียบร้อย!');
 
       document.getElementById('inputSubject').value = '';
-      document.getElementById('inputStartTime').value='';document.getElementById('inputEndTime').value='';document.getElementById('inputWeekday').value='once';
+      document.getElementById('inputStartTime').value='';document.getElementById('inputEndTime').value='';
       document.getElementById('inputLoc').value = '';
     }
 
-    function removeClass(id){ if(String(id).startsWith('r')){showToast('แก้ไขตารางประจำในเวอร์ชันถัดไป');return;} 
+    function removeClass(id) {
       const st = getCurrentStudent();
       st.classes = (st.classes || []).filter(c => c.id !== id);
       saveAppData();
@@ -1393,7 +1376,7 @@ students.forEach(s=>{if(!s.recurring)s.recurring=[];});
       showToast('🗑️ ลบของรางวัลเรียบร้อยแล้ว');
     }
 
-    function toggleDone(id){ if(String(id).startsWith('r')){showToast('วิชาประจำจะรีเซ็ตทุกสัปดาห์');return;} 
+    function toggleDone(id) {
       const st = getCurrentStudent();
       const item = (st.classes || []).find(c => c.id === id);
       if (item) {
@@ -1490,9 +1473,7 @@ students.forEach(s=>{if(!s.recurring)s.recurring=[];});
       }
     }
 
-    
-function copyWeekSchedule(){const st=getCurrentStudent();const src=formatDateKey(selectedDate);const source=(st.classes||[]).filter(c=>c.dateStr===src);if(!source.length){showToast('เลือกวันที่มีวิชาก่อน');return;}const sun=new Date(selectedDate);sun.setDate(selectedDate.getDate()-selectedDate.getDay());for(let i=0;i<7;i++){const d=new Date(sun);d.setDate(sun.getDate()+i);const k=formatDateKey(d);st.classes=st.classes.filter(c=>c.dateStr!==k);source.forEach(c=>st.classes.push({...c,id:Date.now()+Math.random(),dateStr:k,done:false}));}saveAppData();renderCalendar();renderSchedule();showToast('คัดลอกครบทั้งสัปดาห์');}
-function switchTab(tab) {
+    function switchTab(tab) {
       document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
       document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
 
@@ -1536,7 +1517,7 @@ function switchTab(tab) {
       });
     }
 
-    window.addEventListener && window.addEventListener('beforeinstallprompt', (e) => {
+    window.addEventListener('beforeinstallprompt', (e) => {
       e.preventDefault();
       deferredPrompt = e;
       document.getElementById('pwaInstallCard').style.display = 'block';
@@ -1558,18 +1539,6 @@ function switchTab(tab) {
     // Initialize App
     renderStudentSelector();
     renderCalendar();
-  
-// Safari/PWA compatibility
-(function(){
-  document.addEventListener('touchstart', function(){}, {passive:true});
-  window.addEventListener('pageshow', function(e){ if(e.persisted){ renderCalendar(); renderSchedule(); }});
-  if('serviceWorker' in navigator){
-    window.addEventListener('load', function(){
-      navigator.serviceWorker.register('./sw.js',{scope:'./'}).catch(()=>{});
-    });
-  }
-})();
-
-</script>
+  </script>
 </body>
 </html>

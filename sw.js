@@ -1,57 +1,41 @@
-const CACHE_NAME = 'student-app-v1';
-const ASSETS_TO_CACHE = [
-  './',
+const CACHE_NAME = 'study-app-v2026-03';
+const urlsToCache = [
   './index.html',
   './manifest.json',
   'https://fonts.googleapis.com/css2?family=Kanit:wght@300;400;500;600;700&family=Prompt:wght@400;500;600&display=swap',
   'https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css'
 ];
 
-// Install Service Worker & Cache Assets
+// ติดตั้งและบังคับข้ามสถานะรอเพื่อล้าง Cache เก่าทันที
 self.addEventListener('install', (event) => {
+  self.skipWaiting();
   event.waitUntil(
     caches.open(CACHE_NAME).then((cache) => {
-      return cache.addAll(ASSETS_TO_CACHE);
+      return cache.addAll(urlsToCache);
     })
   );
-  self.skipWaiting();
 });
 
-// Activate & Clean Old Caches
+// ล้าง Cache เก่าทิ้งเมื่อมีการเปลี่ยนเวอร์ชัน
 self.addEventListener('activate', (event) => {
   event.waitUntil(
     caches.keys().then((cacheNames) => {
       return Promise.all(
-        cacheNames.map((cache) => {
-          if (cache !== CACHE_NAME) {
-            return caches.delete(cache);
+        cacheNames.map((cacheName) => {
+          if (cacheName !== CACHE_NAME) {
+            return caches.delete(cacheName);
           }
         })
       );
-    })
+    }).then(() => self.clients.claim())
   );
-  self.clients.claim();
 });
 
-// Fetch Assets from Cache / Network
+// ดึงข้อมูลแบบ Network First (พยายามดึงข้อมูลสดใหม่จากเน็ตก่อนเสมอ ถ้าออฟไลน์ค่อยดึงจาก Cache)
 self.addEventListener('fetch', (event) => {
   event.respondWith(
-    caches.match(event.request).then((cachedResponse) => {
-      if (cachedResponse) {
-        return cachedResponse;
-      }
-      return fetch(event.request).then((response) => {
-        if (!response || response.status !== 200 || response.type !== 'basic') {
-          return response;
-        }
-        const responseToCache = response.clone();
-        caches.open(CACHE_NAME).then((cache) => {
-          cache.put(event.request, responseToCache);
-        });
-        return response;
-      });
-    }).catch(() => {
-      return caches.match('./index.html');
+    fetch(event.request).catch(() => {
+      return caches.match(event.request);
     })
   );
 });

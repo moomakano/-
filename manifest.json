@@ -1,23 +1,16 @@
 {
+  "name": "ตารางเรียน & ร้านค้าของรางวัล",
   "short_name": "ตารางเรียน",
-  "name": "ตารางเรียน & สะสมดาว",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "background_color": "#fdf8f9",
+  "theme_color": "#ff5e8e",
   "icons": [
     {
       "src": "https://cdn-icons-png.flaticon.com/512/3429/3429149.png",
-      "type": "image/png",
-      "sizes": "192x192",
-      "purpose": "any maskable"
-    },
-    {
-      "src": "https://cdn-icons-png.flaticon.com/512/3429/3429149.png",
-      "type": "image/png",
       "sizes": "512x512",
+      "type": "image/png",
       "purpose": "any maskable"
     }
-  ],
-  "start_url": "./index.html",
-  "background_color": "#fdf8f9",
-  "theme_color": "#ff5e8e",
-  "display": "standalone",
-  "orientation": "portrait"
+  ]
 }
