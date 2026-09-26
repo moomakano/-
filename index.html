@@ -931,8 +931,8 @@
 
       <div class="preset-title">💡 เลือกวิชาแนะนำด่วน:</div>
       <div class="preset-container">
-        <button class="preset-chip" onclick="applyPreset('✏️ ภาษาไทย (อ่าน-เขียน)', '16:30 - 17:30 น.', '📍 ห้องเรียนหลัก', 1)">✏️ ภาษาไทย</button>
-        <button class="preset-chip" onclick="applyPreset('🔢 คณิตศาสตร์พื้นฐาน', '17:30 - 18:30 น.', '📍 ห้องเรียนหลัก', 1)">🔢 คณิตศาสตร์</button>
+        <button class="preset-chip" onclick="applyPreset('✏️ ภาษาไทย (อ่าน-เขียน)', '16:30 - 17:30 น.', '', 1)">✏️ ภาษาไทย</button>
+        <button class="preset-chip" onclick="applyPreset('🔢 คณิตศาสตร์พื้นฐาน', '17:30 - 18:30 น.', '', 1)">🔢 คณิตศาสตร์</button>
         <button class="preset-chip" onclick="applyPreset('🇬🇧 ภาษาอังกฤษ (Vocab)', '16:30 - 17:30 น.', '📍 ออนไลน์', 1)">🇬🇧 ภาษาอังกฤษ</button>
         <button class="preset-chip" onclick="applyPreset('🧪 วิทยาศาสตร์น่ารู้', '17:30 - 18:30 น.', '📍 ห้องแล็บเด็ก', 1)">🧪 วิทยาศาสตร์</button>
         <button class="preset-chip" onclick="applyPreset('🎨 ศิลปะ & ระบายสี', '16:00 - 17:00 น.', '📍 ห้องศิลปะ', 1)">🎨 ศิลปะ</button>
@@ -980,7 +980,17 @@
       </div>
       <div class="modal-actions">
         <button class="btn-cancel" onclick="closeModal('classModal')">ยกเลิก</button>
-        <button class="btn-submit" onclick="addClass()">บันทึกวิชา</button>
+        
+<div class="form-group">
+  <label>🔔 แจ้งเตือนก่อนเรียน</label>
+  <select id="notifyOffset" style="width:100%;padding:12px;border:1px solid #ddd;border-radius:14px">
+    <option value="0">ไม่แจ้งเตือน</option>
+    <option value="15">15 นาที</option>
+    <option value="30">30 นาที</option>
+    <option value="60">1 ชั่วโมง</option>
+  </select>
+</div>
+<button class="btn-submit" onclick="addClass()">บันทึกวิชา</button>
       </div>
     </div>
   </div>
@@ -1281,7 +1291,7 @@
           icon: icon,
           stars: 0,
           classes: [
-            { id: 1, dateStr: formatDateKey(new Date()), time: '16:30 - 17:30 น.', title: '✏️ ภาษาไทย (อ่าน-เขียน)', loc: '📍 ห้องเรียนหลัก', done: false, reward: 1 }
+            { id: 1, dateStr: formatDateKey(new Date()), time: '16:30 - 17:30 น.', title: '✏️ ภาษาไทย (อ่าน-เขียน)', loc: '', done: false, reward: 1 }
           ],
           rewards: [
             { id: 1, icon: '🍦', title: 'กินไอศกรีม 1 ถ้วย', cost: 3 }
@@ -1339,7 +1349,9 @@ function addClass(){
  const make=d=>st.classes.push({id:Date.now()+Math.random(),dateStr:formatDateKey(d),title,time:`${start} - ${end} น.`,loc:loc||'📍 ห้องเรียน',reward,done:false});
  if(repeat.length){const base=new Date(selectedDate);for(let i=0;i<365;i++){const d=new Date(base);d.setDate(base.getDate()+i);if(repeat.includes(d.getDay()))make(d);}}
  else make(new Date(selectedDate));
- saveAppData();renderCalendar();renderSchedule();closeModal('classModal');showToast('✨ เพิ่มตารางเรียนแล้ว');
+ saveAppData();renderCalendar();renderSchedule();
+      const off=parseInt(document.getElementById('notifyOffset')?.value||0);
+      scheduleStudyNotification(title,formatDateKey(repeat.length?new Date(selectedDate):new Date(selectedDate)),start,off);closeModal('classModal');showToast('✨ เพิ่มตารางเรียนแล้ว');
  document.getElementById('inputSubject').value='';document.getElementById('inputStartTime').value='';document.getElementById('inputEndTime').value='';document.getElementById('inputLoc').value='';document.querySelectorAll('.repeat-day').forEach(c=>c.checked=false);
 }
 
