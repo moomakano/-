@@ -197,13 +197,9 @@
     }
 
     
-    .calendar-swipe-area{
-      touch-action: pan-y;
-      position: relative;
-    }
-    .calendar-swipe-area.swiping{
-      transition: transform .15s ease;
-    }
+    .calendar-swipe-area{touch-action:pan-y;overflow:hidden}
+    .calendar-track{transition:transform .25s ease;will-change:transform}
+    .tab-content{transition:opacity .18s ease,transform .18s ease}
 
     /* Schedule & Calendar */
     .month-selector {
@@ -794,7 +790,7 @@
   <div class="container">
     <!-- TAB 1: Schedule -->
     <div id="view-schedule" class="tab-content active">
-      <div id="calendarSwipeArea" class="calendar-swipe-area">
+      <div id="calendarSwipeArea" class="calendar-swipe-area"><div id="calendarTrack" class="calendar-track">
       <div class="month-selector">
         <button class="nav-btn" onclick="prevMonth()"><i class="fa-solid fa-caret-left"></i></button>
         <span class="month-label" id="monthLabel">มีนาคม 2569</span>
@@ -806,7 +802,7 @@
       </div>
 
       <div class="calendar-grid" id="calendarGrid"></div>
-      </div>
+      </div></div>
 
       <!-- Legend -->
       <div class="calendar-legend">
@@ -1598,34 +1594,25 @@ function removeClass(id) {
     renderStudentSelector();
     renderCalendar();
   
-// ===== Swipe Calendar V8 =====
+// ===== V8.1 Premium Swipe =====
 (function(){
-  let sx=0, dx=0;
-  const TH=60;
-  function bind(){
-    const el=document.getElementById('calendarSwipeArea');
-    if(!el) return;
-    el.addEventListener('touchstart',e=>{
-      sx=e.touches[0].clientX;
-      dx=0;
-      el.classList.add('swiping');
-    },{passive:true});
-    el.addEventListener('touchmove',e=>{
-      dx=e.touches[0].clientX-sx;
-      if(Math.abs(dx)>10){
-        el.style.transform=`translateX(${Math.max(-30,Math.min(30,dx/4))}px)`;
-      }
-    },{passive:true});
-    el.addEventListener('touchend',()=>{
-      el.style.transform='';
-      el.classList.remove('swiping');
-      if(dx<-TH) nextMonth();
-      else if(dx>TH) prevMonth();
-    },{passive:true});
-  }
-  if(document.readyState==='loading'){
-    document.addEventListener('DOMContentLoaded',bind);
-  }else bind();
+ let sx=0,dx=0,active=false;
+ function bindCal(){
+  const el=document.getElementById('calendarSwipeArea'),track=document.getElementById('calendarTrack');
+  if(!el||!track) return;
+  el.addEventListener('touchstart',e=>{sx=e.touches[0].clientX;dx=0;active=true;track.style.transition='none';},{passive:true});
+  el.addEventListener('touchmove',e=>{if(!active)return;dx=e.touches[0].clientX-sx;track.style.transform=`translateX(${dx/2}px)`;},{passive:true});
+  el.addEventListener('touchend',()=>{active=false;track.style.transition='transform .22s ease';if(dx<-70){track.style.transform='translateX(-120px)';setTimeout(()=>{nextMonth();track.style.transition='none';track.style.transform='translateX(120px)';requestAnimationFrame(()=>{track.style.transition='transform .22s ease';track.style.transform='translateX(0)';});},120);}else if(dx>70){track.style.transform='translateX(120px)';setTimeout(()=>{prevMonth();track.style.transition='none';track.style.transform='translateX(-120px)';requestAnimationFrame(()=>{track.style.transition='transform .22s ease';track.style.transform='translateX(0)';});},120);}else{track.style.transform='translateX(0)';}},{passive:true});
+ }
+ function bindTabs(){
+  let start=0,d=0;
+  const views=['schedule','shop','settings'];
+  const box=document.querySelector('.container');
+  box.addEventListener('touchstart',e=>{start=e.touches[0].clientX;d=0;},{passive:true});
+  box.addEventListener('touchmove',e=>{d=e.touches[0].clientX-start;},{passive:true});
+  box.addEventListener('touchend',()=>{if(Math.abs(d)<90)return;const cur=document.querySelector('.tab-btn.active').id.replace('tab-','');let i=views.indexOf(cur);if(d<0&&i<2)i++;if(d>0&&i>0)i--;switchTab(views[i]);},{passive:true});
+ }
+ if(document.readyState==='loading'){document.addEventListener('DOMContentLoaded',()=>{bindCal();bindTabs();});}else{bindCal();bindTabs();}
 })();
 
 </script>
