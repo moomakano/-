@@ -1073,6 +1073,7 @@
       currentStudentId = id;
       saveAppData();
       renderStudentSelector();
+      ensureRepeatIds();
       renderCalendar();
       showToast(`✨ สลับเป็น ${getCurrentStudent().name} แล้ว`);
     }
