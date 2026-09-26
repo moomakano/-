@@ -909,71 +909,7 @@
     <div class="modal-content">
       <div class="modal-title" id="studentModalTitle">➕ เพิ่มนักเรียนคนใหม่</div>
       <input type="hidden" id="editStudentId" value="">
-      <div class="form-group">
-        <label>รูปอีโมจิประจำตัว</label>
-        <input type="text" id="inputStudentIcon" placeholder="เช่น 👧 หรือ 👦">
-      </div>
-      <div class="form-group">
-        <label>ชื่อนักเรียน / ชื่อเล่น</label>
-        <input type="text" id="inputStudentName" placeholder="เช่น น้องต้นกล้า">
-      </div>
-      <div class="modal-actions">
-        <button class="btn-cancel" onclick="closeModal('studentModal')">ยกเลิก</button>
-        <button class="btn-submit" onclick="saveStudent()">บันทึกนักเรียน</button>
-      </div>
-    </div>
-  </div>
-
-  <!-- Modal 2: Add Subject Form -->
-  <div class="modal" id="classModal">
-    <div class="modal-content">
-      <div class="modal-title">➕ เพิ่มวิชาเรียนใหม่</div>
-
-      <div class="preset-title">💡 เลือกวิชาแนะนำด่วน:</div>
-      <div class="preset-container">
-        <button class="preset-chip" onclick="applyPreset('✏️ ภาษาไทย (อ่าน-เขียน)', '16:30 - 17:30 น.', '', 1)">✏️ ภาษาไทย</button>
-        <button class="preset-chip" onclick="applyPreset('🔢 คณิตศาสตร์พื้นฐาน', '17:30 - 18:30 น.', '', 1)">🔢 คณิตศาสตร์</button>
-        <button class="preset-chip" onclick="applyPreset('🇬🇧 ภาษาอังกฤษ (Vocab)', '16:30 - 17:30 น.', '📍 ออนไลน์', 1)">🇬🇧 ภาษาอังกฤษ</button>
-        <button class="preset-chip" onclick="applyPreset('🧪 วิทยาศาสตร์น่ารู้', '17:30 - 18:30 น.', '📍 ห้องแล็บเด็ก', 1)">🧪 วิทยาศาสตร์</button>
-        <button class="preset-chip" onclick="applyPreset('🎨 ศิลปะ & ระบายสี', '16:00 - 17:00 น.', '📍 ห้องศิลปะ', 1)">🎨 ศิลปะ</button>
-        <button class="preset-chip" onclick="applyPreset('💻 โค้ดดิ้งเด็กเล็ก (ScratchJR)', '17:00 - 18:00 น.', '📍 ออนไลน์', 1)">💻 โค้ดดิ้ง</button>
-        <button class="preset-chip" onclick="applyPreset('🎵 ดนตรี / เปียโน', '16:30 - 17:30 น.', '📍 โรงเรียนดนตรี', 1)">🎵 ดนตรี</button>
-        <button class="preset-chip" onclick="applyPreset('🏊‍♂️ ว่ายน้ำ / พละศึกษา', '16:00 - 17:30 น.', '📍 สระว่ายน้ำ', 1)">🏊‍♂️ ว่ายน้ำ</button>
-      </div>
-
-      <div class="form-group">
-        <label>ชื่อวิชา (พร้อมอีโมจิ)</label>
-        <input type="text" id="inputSubject" placeholder="เช่น ✏️ ภาษาไทย">
-      </div>
       
-<div class="form-group">
-<label>📅 ตารางประจำ</label>
-<div class="day-wrap" style="margin-top:8px">
-<label class="day-pill"><input type="checkbox" class="repeat-day" value="1"><span>จ</span></label>
-<label class="day-pill"><input type="checkbox" class="repeat-day" value="2"><span>อ</span></label>
-<label class="day-pill"><input type="checkbox" class="repeat-day" value="3"><span>พ</span></label>
-<label class="day-pill"><input type="checkbox" class="repeat-day" value="4"><span>พฤ</span></label>
-<label class="day-pill"><input type="checkbox" class="repeat-day" value="5"><span>ศ</span></label>
-<label class="day-pill"><input type="checkbox" class="repeat-day" value="6"><span>ส</span></label>
-<label class="day-pill"><input type="checkbox" class="repeat-day" value="0"><span>อา</span></label>
-</div>
-</div>
-
-<div class="form-group">
-<label>🕒 เวลาเรียน</label>
-<div class="time-card">
-<input type="time" id="inputStartTime" class="time-box time-start" step="300" style="-webkit-appearance:auto">
-<div style="font-size:1.2rem;color:#e91e63">→</div>
-<input type="time" id="inputEndTime" class="time-box time-end" readonly style="-webkit-appearance:auto">
-</div>
-<div style="font-size:.75rem;color:#888;margin-top:4px">เวลาเลิก +1 ชั่วโมงอัตโนมัติ</div>
-</div>
-
-<div class="form-group">
-<label>ชื่อครูผู้สอน
-</label>
-        <input type="text" id="inputLoc" placeholder="เช่น ครูปาล์ม">
-      </div>
       <div class="form-group">
         <label>ดาวที่จะได้รับเมื่อเรียนเสร็จ</label>
         <input type="number" id="inputStars" value="1" min="1">
