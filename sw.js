@@ -1,41 +1,35 @@
-const CACHE_NAME = 'study-app-v2026-03';
-const urlsToCache = [
-  './index.html',
-  './manifest.json',
-  'https://fonts.googleapis.com/css2?family=Kanit:wght@300;400;500;600;700&family=Prompt:wght@400;500;600&display=swap',
-  'https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css'
-];
+const CACHE_NAME = 'study-app-v7.3';
+const urlsToCache = ['./','./index.html','./manifest.json'];
 
-// ติดตั้งและบังคับข้ามสถานะรอเพื่อล้าง Cache เก่าทันที
-self.addEventListener('install', (event) => {
+self.addEventListener('install', e => {
   self.skipWaiting();
-  event.waitUntil(
-    caches.open(CACHE_NAME).then((cache) => {
-      return cache.addAll(urlsToCache);
-    })
-  );
+  e.waitUntil(caches.open(CACHE_NAME).then(c=>c.addAll(urlsToCache)));
 });
 
-// ล้าง Cache เก่าทิ้งเมื่อมีการเปลี่ยนเวอร์ชัน
-self.addEventListener('activate', (event) => {
-  event.waitUntil(
-    caches.keys().then((cacheNames) => {
-      return Promise.all(
-        cacheNames.map((cacheName) => {
-          if (cacheName !== CACHE_NAME) {
-            return caches.delete(cacheName);
-          }
-        })
-      );
-    }).then(() => self.clients.claim())
-  );
+self.addEventListener('activate', e => {
+  e.waitUntil(caches.keys().then(keys=>Promise.all(keys.filter(k=>k!==CACHE_NAME).map(k=>caches.delete(k)))).then(()=>self.clients.claim()));
 });
 
-// ดึงข้อมูลแบบ Network First (พยายามดึงข้อมูลสดใหม่จากเน็ตก่อนเสมอ ถ้าออฟไลน์ค่อยดึงจาก Cache)
-self.addEventListener('fetch', (event) => {
-  event.respondWith(
-    fetch(event.request).catch(() => {
-      return caches.match(event.request);
-    })
-  );
+self.addEventListener('fetch', e => {
+  e.respondWith(fetch(e.request).catch(()=>caches.match(e.request)));
+});
+
+self.addEventListener('message', async (event)=>{
+  if(event.data?.type!=='SHOW_NOTIFICATION') return;
+  const p=event.data.payload||{};
+  await self.registration.showNotification(p.title||'ตารางเรียน',{
+    body:p.body||'',
+    icon:'https://cdn-icons-png.flaticon.com/512/3429/3429149.png',
+    badge:'https://cdn-icons-png.flaticon.com/512/3429/3429149.png',
+    tag:'study-reminder',
+    renotify:true
+  });
+});
+
+self.addEventListener('notificationclick', event=>{
+  event.notification.close();
+  event.waitUntil(clients.matchAll({type:'window',includeUncontrolled:true}).then(list=>{
+    for(const c of list){ if('focus' in c) return c.focus(); }
+    return clients.openWindow('./');
+  }));
 });

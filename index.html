@@ -1350,6 +1350,7 @@ function addClass(){
  if(repeat.length){const base=new Date(selectedDate);for(let i=0;i<365;i++){const d=new Date(base);d.setDate(base.getDate()+i);if(repeat.includes(d.getDay()))make(d);}}
  else make(new Date(selectedDate));
  saveAppData();renderCalendar();renderSchedule();
+const off=parseInt(document.getElementById('notifyOffset')?.value||0);if(off>0&&'serviceWorker' in navigator&&navigator.serviceWorker.controller){navigator.serviceWorker.controller.postMessage({type:'SHOW_NOTIFICATION',payload:{title:`📚 ${title}`,body:`ตั้งแจ้งเตือนก่อนเรียน ${off===60?'1 ชั่วโมง':off+' นาที'}`}});}
       const off=parseInt(document.getElementById('notifyOffset')?.value||0);
       scheduleStudyNotification(title,formatDateKey(repeat.length?new Date(selectedDate):new Date(selectedDate)),start,off);closeModal('classModal');showToast('✨ เพิ่มตารางเรียนแล้ว');
  document.getElementById('inputSubject').value='';document.getElementById('inputStartTime').value='';document.getElementById('inputEndTime').value='';document.getElementById('inputLoc').value='';document.querySelectorAll('.repeat-day').forEach(c=>c.checked=false);
