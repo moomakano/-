@@ -1,1 +1,1 @@
-แตก ZIP แล้วอัปโหลดทั้งโฟลเดอร์ขึ้น Cloudflare Pages
+Cloudflare Pages: อัปโหลดทั้งโฟลเดอร์หรือ ZIP นี้ โดยใช้ index.html ที่อยู่ภายในเป็นไฟล์หลัก.

@@ -1,10 +1,10 @@
 {
-  "name": "Study Schedule V6.2",
-  "short_name": "StudyV62",
+  "name": "Study Schedule V5",
+  "short_name": "StudyV5",
   "start_url": "/",
   "display": "standalone",
+  "background_color": "#fdf8f9",
   "theme_color": "#ff5e8e",
-  "background_color": "#fff6f8",
   "icons": [
     {
       "src": "icons/icon-192.png",
