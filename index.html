@@ -647,7 +647,7 @@
     .modal-content {
       background: white;
       border-radius: 24px;
-      padding: 24px;
+      padding: 18px;
       width: 100%;
       max-width: 400px;
       box-shadow: 0 10px 25px rgba(0,0,0,0.2);
@@ -918,8 +918,8 @@
 
       <div class="preset-title">💡 เลือกวิชาแนะนำด่วน:</div>
       <div class="preset-container">
-        <button class="preset-chip" onclick="applyPreset('✏️ ภาษาไทย (อ่าน-เขียน)', '16:30 - 17:30 น.', '📍 ห้องเรียนหลัก', 1)">✏️ ภาษาไทย</button>
-        <button class="preset-chip" onclick="applyPreset('🔢 คณิตศาสตร์พื้นฐาน', '17:30 - 18:30 น.', '📍 ห้องเรียนหลัก', 1)">🔢 คณิตศาสตร์</button>
+        <button class="preset-chip" onclick="applyPreset('✏️ ภาษาไทย (อ่าน-เขียน)', '16:30 - 17:30 น.', '', 1)">✏️ ภาษาไทย</button>
+        <button class="preset-chip" onclick="applyPreset('🔢 คณิตศาสตร์พื้นฐาน', '17:30 - 18:30 น.', '', 1)">🔢 คณิตศาสตร์</button>
         <button class="preset-chip" onclick="applyPreset('🇬🇧 ภาษาอังกฤษ (Vocab)', '16:30 - 17:30 น.', '📍 ออนไลน์', 1)">🇬🇧 ภาษาอังกฤษ</button>
         <button class="preset-chip" onclick="applyPreset('🧪 วิทยาศาสตร์น่ารู้', '17:30 - 18:30 น.', '📍 ห้องแล็บเด็ก', 1)">🧪 วิทยาศาสตร์</button>
         <button class="preset-chip" onclick="applyPreset('🎨 ศิลปะ & ระบายสี', '16:00 - 17:00 น.', '📍 ห้องศิลปะ', 1)">🎨 ศิลปะ</button>
@@ -932,32 +932,15 @@
         <label>ชื่อวิชา (พร้อมอีโมจิ)</label>
         <input type="text" id="inputSubject" placeholder="เช่น ✏️ ภาษาไทย">
       </div>
-      
-<div class="form-group">
-  <label>📅 ตารางประจำ</label>
-  <div style="display:grid;grid-template-columns:repeat(7,1fr);gap:8px;margin-top:8px">
-    <label class="day-pill"><input type="checkbox" class="repeat-day" value="1"><span>จ</span></label>
-    <label class="day-pill"><input type="checkbox" class="repeat-day" value="2"><span>อ</span></label>
-    <label class="day-pill"><input type="checkbox" class="repeat-day" value="3"><span>พ</span></label>
-    <label class="day-pill"><input type="checkbox" class="repeat-day" value="4"><span>พฤ</span></label>
-    <label class="day-pill"><input type="checkbox" class="repeat-day" value="5"><span>ศ</span></label>
-    <label class="day-pill"><input type="checkbox" class="repeat-day" value="6"><span>ส</span></label>
-    <label class="day-pill"><input type="checkbox" class="repeat-day" value="0"><span>อา</span></label>
-  </div>
+      <div class="form-group">
+        <label>เวลาเรียน</label>
+<div style="display:flex;gap:10px">
+<div style="flex:1"><label style="font-size:.75rem;color:#888">เริ่ม</label><input type="time" id="inputStartTime" step="300" style="-webkit-appearance:auto;width:100%;padding:10px;border:1px solid #ddd;border-radius:12px"></div>
+<div style="flex:1"><label style="font-size:.75rem;color:#888">สิ้นสุด</label><input type="time" id="inputEndTime" step="300" style="-webkit-appearance:auto;width:100%;padding:10px;border:1px solid #ddd;border-radius:12px" readonly></div>
 </div>
-
-<div class="form-group">
-  <label>🕒 เวลาเรียน</label>
-  <div style="display:grid;grid-template-columns:1fr auto 1fr;gap:12px;align-items:center">
-    <input type="time" id="inputStartTime" step="300" style="-webkit-appearance:auto;width:100%;padding:14px;border:1px solid #ddd;border-radius:16px;font-size:1.1rem">
-    <div style="font-size:1.3rem;color:#e91e63;text-align:center">→</div>
-    <input type="time" id="inputEndTime" readonly style="-webkit-appearance:auto;width:100%;padding:14px;border:1px solid #f8bbd0;background:#fff0f5;color:#e91e63;border-radius:16px;font-size:1.1rem;font-weight:700">
-  </div>
-  <div style="font-size:.75rem;color:#888;margin-top:6px">เลือกเวลาเริ่ม ระบบคำนวณเวลาเลิก +1 ชั่วโมงอัตโนมัติ</div>
-</div>
-
-<div class="form-group">
-  <label>ชื่อครูผู้สอน</label>
+      </div>
+      <div class="form-group">
+        <label>ชื่อครูผู้สอน</label>
         <input type="text" id="inputLoc" placeholder="เช่น ครูปาล์ม">
       </div>
       <div class="form-group">
@@ -1148,7 +1131,7 @@
 
     function applyPreset(subject, time, loc, stars) {
       document.getElementById('inputSubject').value = subject;
-      const p=time.replace(' น.','').split(' - ');document.getElementById('inputStartTime').value=(p[0]||'').trim();document.getElementById('inputEndTime').value=(p[1]||'').trim();
+      const p=time.replace(' น.','').split(' - ');document.getElementById('inputStartTime').value=(p[0]||'').trim();updateEndTimeAuto();
       document.getElementById('inputLoc').value = loc;
       document.getElementById('inputStars').value = stars;
     }
@@ -1267,7 +1250,7 @@
           icon: icon,
           stars: 0,
           classes: [
-            { id: 1, dateStr: formatDateKey(new Date()), time: '16:30 - 17:30 น.', title: '✏️ ภาษาไทย (อ่าน-เขียน)', loc: '📍 ห้องเรียนหลัก', done: false, reward: 1 }
+            { id: 1, dateStr: formatDateKey(new Date()), time: '16:30 - 17:30 น.', title: '✏️ ภาษาไทย (อ่าน-เขียน)', loc: '', done: false, reward: 1 }
           ],
           rewards: [
             { id: 1, icon: '🍦', title: 'กินไอศกรีม 1 ถ้วย', cost: 3 }
@@ -1331,7 +1314,7 @@
         dateStr: formatDateKey(selectedDate),
         title: title,
         time: time,
-        loc: loc || '📍 ห้องเรียน',
+        loc: loc || '',
         reward: reward,
         done: false
       });
