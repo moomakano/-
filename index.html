@@ -196,6 +196,15 @@
       display: block;
     }
 
+    
+    .calendar-swipe-area{
+      touch-action: pan-y;
+      position: relative;
+    }
+    .calendar-swipe-area.swiping{
+      transition: transform .15s ease;
+    }
+
     /* Schedule & Calendar */
     .month-selector {
       background: rgba(255, 255, 255, 0.9);
@@ -785,6 +794,7 @@
   <div class="container">
     <!-- TAB 1: Schedule -->
     <div id="view-schedule" class="tab-content active">
+      <div id="calendarSwipeArea" class="calendar-swipe-area">
       <div class="month-selector">
         <button class="nav-btn" onclick="prevMonth()"><i class="fa-solid fa-caret-left"></i></button>
         <span class="month-label" id="monthLabel">มีนาคม 2569</span>
@@ -796,6 +806,7 @@
       </div>
 
       <div class="calendar-grid" id="calendarGrid"></div>
+      </div>
 
       <!-- Legend -->
       <div class="calendar-legend">
@@ -1586,6 +1597,37 @@ function removeClass(id) {
     // Initialize App
     renderStudentSelector();
     renderCalendar();
-  </script>
+  
+// ===== Swipe Calendar V8 =====
+(function(){
+  let sx=0, dx=0;
+  const TH=60;
+  function bind(){
+    const el=document.getElementById('calendarSwipeArea');
+    if(!el) return;
+    el.addEventListener('touchstart',e=>{
+      sx=e.touches[0].clientX;
+      dx=0;
+      el.classList.add('swiping');
+    },{passive:true});
+    el.addEventListener('touchmove',e=>{
+      dx=e.touches[0].clientX-sx;
+      if(Math.abs(dx)>10){
+        el.style.transform=`translateX(${Math.max(-30,Math.min(30,dx/4))}px)`;
+      }
+    },{passive:true});
+    el.addEventListener('touchend',()=>{
+      el.style.transform='';
+      el.classList.remove('swiping');
+      if(dx<-TH) nextMonth();
+      else if(dx>TH) prevMonth();
+    },{passive:true});
+  }
+  if(document.readyState==='loading'){
+    document.addEventListener('DOMContentLoaded',bind);
+  }else bind();
+})();
+
+</script>
 </body>
 </html>
