@@ -624,18 +624,7 @@
       font-weight: 600;
     }
 
-    
-/* ==== V6.8 Wheel Picker ==== */
-.wheel-row{display:grid;grid-template-columns:1fr 70px auto 70px 1fr;gap:8px;align-items:center}
-.wheel-select{appearance:none;-webkit-appearance:none;background:#fff;border:1px solid #ddd;border-radius:16px;padding:12px;font-size:1.05rem;font-weight:700;text-align:center}
-.wheel-end{background:#fff0f5;border-color:#f8bbd0;color:#e91e63}
-.day-wrap{display:flex;gap:6px;justify-content:space-between}
-.day-pill{flex:1}
-.day-pill input{display:none}
-.day-pill span{display:flex;justify-content:center;align-items:center;height:42px;border-radius:14px;background:#fff5f8;border:1px solid #f8bbd0;color:#c2185b;font-weight:700}
-.day-pill input:checked+span{background:#e91e63;color:#fff}
-
-/* Modal Form Overlay */
+    /* Modal Form Overlay */
     .modal {
       display: none;
       position: fixed;
@@ -945,37 +934,30 @@
       </div>
       
 <div class="form-group">
-<label>📅 ตารางประจำ</label>
-<div class="day-wrap" style="margin-top:8px">
-<label class="day-pill"><input type="checkbox" class="repeat-day" value="1"><span>จ</span></label>
-<label class="day-pill"><input type="checkbox" class="repeat-day" value="2"><span>อ</span></label>
-<label class="day-pill"><input type="checkbox" class="repeat-day" value="3"><span>พ</span></label>
-<label class="day-pill"><input type="checkbox" class="repeat-day" value="4"><span>พฤ</span></label>
-<label class="day-pill"><input type="checkbox" class="repeat-day" value="5"><span>ศ</span></label>
-<label class="day-pill"><input type="checkbox" class="repeat-day" value="6"><span>ส</span></label>
-<label class="day-pill"><input type="checkbox" class="repeat-day" value="0"><span>อา</span></label>
-</div>
-</div>
-
-<div class="form-group">
-<label>🕒 เวลาเรียน (V6.8)</label>
-<div class="wheel-row">
-<select id="startHour" class="wheel-select"></select>
-<div style="text-align:center;font-weight:700">:</div>
-<select id="startMinute" class="wheel-select"></select>
-<div style="font-size:1.2rem;color:#e91e63;text-align:center">→</div>
-<div style="display:grid;grid-template-columns:70px 18px 70px;gap:6px">
-<select id="endHour" class="wheel-select wheel-end" disabled></select>
-<div style="text-align:center;font-weight:700;align-self:center">:</div>
-<select id="endMinute" class="wheel-select wheel-end" disabled></select>
-</div>
-</div>
-<div style="font-size:.75rem;color:#888;margin-top:6px">เลือกชั่วโมงและนาที เวลาเลิก +1 ชั่วโมงอัตโนมัติ</div>
+  <label>📅 ตารางประจำ</label>
+  <div style="display:grid;grid-template-columns:repeat(7,1fr);gap:8px;margin-top:8px">
+    <label class="day-pill"><input type="checkbox" class="repeat-day" value="1"><span>จ</span></label>
+    <label class="day-pill"><input type="checkbox" class="repeat-day" value="2"><span>อ</span></label>
+    <label class="day-pill"><input type="checkbox" class="repeat-day" value="3"><span>พ</span></label>
+    <label class="day-pill"><input type="checkbox" class="repeat-day" value="4"><span>พฤ</span></label>
+    <label class="day-pill"><input type="checkbox" class="repeat-day" value="5"><span>ศ</span></label>
+    <label class="day-pill"><input type="checkbox" class="repeat-day" value="6"><span>ส</span></label>
+    <label class="day-pill"><input type="checkbox" class="repeat-day" value="0"><span>อา</span></label>
+  </div>
 </div>
 
 <div class="form-group">
-<label>ชื่อครูผู้สอน
-</label>
+  <label>🕒 เวลาเรียน</label>
+  <div style="display:grid;grid-template-columns:1fr auto 1fr;gap:12px;align-items:center">
+    <input type="time" id="inputStartTime" step="300" style="-webkit-appearance:auto;width:100%;padding:14px;border:1px solid #ddd;border-radius:16px;font-size:1.1rem">
+    <div style="font-size:1.3rem;color:#e91e63;text-align:center">→</div>
+    <input type="time" id="inputEndTime" readonly style="-webkit-appearance:auto;width:100%;padding:14px;border:1px solid #f8bbd0;background:#fff0f5;color:#e91e63;border-radius:16px;font-size:1.1rem;font-weight:700">
+  </div>
+  <div style="font-size:.75rem;color:#888;margin-top:6px">เลือกเวลาเริ่ม ระบบคำนวณเวลาเลิก +1 ชั่วโมงอัตโนมัติ</div>
+</div>
+
+<div class="form-group">
+  <label>ชื่อครูผู้สอน</label>
         <input type="text" id="inputLoc" placeholder="เช่น ครูปาล์ม">
       </div>
       <div class="form-group">
@@ -1332,7 +1314,7 @@
 
     function addClass() {
       const title = document.getElementById('inputSubject').value.trim();
-      const start=`${document.getElementById('startHour').value}:${document.getElementById('startMinute').value}`;const end=`${document.getElementById('endHour').value}:${document.getElementById('endMinute').value}`;const time=(start&&end)?`${start} - ${end} น.`:'';
+      const start=document.getElementById('inputStartTime').value;const end=document.getElementById('inputEndTime').value;const time=(start&&end)?`${start} - ${end} น.`:'';
       const loc = document.getElementById('inputLoc').value.trim();
       const reward = parseInt(document.getElementById('inputStars').value) || 1;
 
@@ -1361,7 +1343,7 @@
       showToast('✨ เพิ่มวิชาเรียนเรียบร้อย!');
 
       document.getElementById('inputSubject').value = '';
-      
+      document.getElementById('inputStartTime').value='';document.getElementById('inputEndTime').value='';
       document.getElementById('inputLoc').value = '';
     }
 
