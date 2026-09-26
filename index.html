@@ -1571,5 +1571,28 @@ function removeClass(id){
     renderStudentSelector();
     renderCalendar();
   </script>
+
+<script>
+function closeDeleteSheet(){
+ document.getElementById('deleteBackdrop').classList.remove('show');
+ document.getElementById('deleteSheet').classList.remove('show');
+}
+function deleteToday(){
+ const st=getCurrentStudent();
+ st.classes=st.classes.filter(c=>c.id!==deleteTarget.id);
+ saveAppData();renderCalendar();renderSchedule();closeDeleteSheet();
+}
+function deleteAllRecurring(){
+ const st=getCurrentStudent();
+ st.classes=st.classes.filter(c=>c.repeatId!==deleteTarget.repeatId);
+ saveAppData();renderCalendar();renderSchedule();closeDeleteSheet();
+}
+function deleteFuture(){
+ const st=getCurrentStudent();
+ st.classes=st.classes.filter(c=>!(c.repeatId===deleteTarget.repeatId&&c.dateStr>=deleteTarget.dateStr));
+ saveAppData();renderCalendar();renderSchedule();closeDeleteSheet();
+}
+</script>
+
 </body>
 </html>
