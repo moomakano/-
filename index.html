@@ -828,16 +828,6 @@ body.dark .day-number.today{
   backdrop-filter:blur(18px);
 }
 
-
-/* V14 Notification Toggle */
-.notify-card{background:white;border-radius:18px;padding:14px;margin-top:12px;box-shadow:var(--shadow)}
-.switch{position:relative;display:inline-block;width:52px;height:30px}
-.switch input{display:none}
-.slider{position:absolute;inset:0;background:#ccc;border-radius:30px;transition:.25s}
-.slider:before{content:'';position:absolute;width:24px;height:24px;left:3px;top:3px;background:white;border-radius:50%;transition:.25s}
-.switch input:checked+.slider{background:#e91e63}
-.switch input:checked+.slider:before{transform:translateX(22px)}
-
 </style>
 </head>
 <body>
@@ -994,12 +984,21 @@ body.dark .day-number.today{
             <i class="fa-solid fa-trash"></i> ล้างข้อมูล
           </button>
         </div>
-      
-<div class="notify-card">
-<div style="display:flex;justify-content:space-between;align-items:center">
-<div><div class="setting-title">🔔 แจ้งเตือนก่อนเรียน</div><div class="setting-desc">30,15,5 นาที และเมื่อถึงเวลา</div></div>
-<label class="switch"><input id="notifyToggle" type="checkbox" onchange="toggleNotifications(this.checked)"><span class="slider"></span></label>
-</div></div>
+      </div>
+    
+<div class="setting-card" id="notifySettingCard">
+  <div class="setting-item">
+    <div class="setting-info">
+      <div class="setting-title">🔔 แจ้งเตือนก่อนเรียน</div>
+      <div class="setting-desc">30, 15, 5 นาที และเมื่อถึงเวลาเรียน</div>
+    </div>
+    <label style="position:relative;display:inline-block;width:52px;height:30px">
+      <input id="notifyToggle" type="checkbox" style="display:none" onchange="toggleNotifications(this.checked)">
+      <span id="notifySlider" style="position:absolute;inset:0;background:#ccc;border-radius:30px;transition:.25s"></span>
+      <span id="notifyKnob" style="position:absolute;width:24px;height:24px;left:3px;top:3px;background:white;border-radius:50%;transition:.25s"></span>
+    </label>
+  </div>
+</div>
 
 
   <!-- Modal 1: Add/Edit Student Form -->
@@ -1745,12 +1744,13 @@ mq.addEventListener?.('change',e=>{
 </script>
 
 <script>
-const notifyOffsets=[30,15,5,0];
-let sentCache=JSON.parse(localStorage.getItem('notify_sent')||'{}');
-function toggleNotifications(on){localStorage.setItem('notify_enabled',on?'1':'0');if(on&&Notification.permission==='default')Notification.requestPermission();}
-function fireNotify(t,b){try{if(Notification.permission==='granted')new Notification(t,{body:b,icon:'https://cdn-icons-png.flaticon.com/512/3429/3429149.png'});}catch(e){}}
-function checkNotifications(){if(localStorage.getItem('notify_enabled')!=='1')return;const st=getCurrentStudent?.();if(!st||!st.classes)return;const now=new Date();const key=now.toISOString().slice(0,10);st.classes.filter(c=>c.dateStr===key&&!c.done).forEach(c=>{const hm=(c.time||'').split(' - ')[0];if(!hm)return;const [h,m]=hm.split(':').map(Number);const start=new Date(now.getFullYear(),now.getMonth(),now.getDate(),h,m,0);const diff=Math.round((start-now)/60000);notifyOffsets.forEach(o=>{if(diff===o){const id=key+c.id+o;if(sentCache[id])return;sentCache[id]=1;localStorage.setItem('notify_sent',JSON.stringify(sentCache));fireNotify('📚 ตารางเรียน',o?`อีก ${o} นาที ถึงเวลาเรียน ${c.title}`:`ถึงเวลาเรียน ${c.title}`);}});});}
-window.addEventListener('load',()=>{if('serviceWorker'in navigator)navigator.serviceWorker.register('sw.js').catch(()=>{});const en=localStorage.getItem('notify_enabled')==='1';const t=document.getElementById('notifyToggle');if(t)t.checked=en;if(en&&Notification.permission==='default')Notification.requestPermission();setInterval(checkNotifications,30000);checkNotifications();});
+const NOTIFY_OFFSETS=[30,15,5,0];
+let notifySent=JSON.parse(localStorage.getItem("notify_sent")||"{}");
+function updateNotifyUI(){const on=localStorage.getItem("notify_enabled")==="1";const t=document.getElementById("notifyToggle");const s=document.getElementById("notifySlider");const k=document.getElementById("notifyKnob");if(t)t.checked=on;if(s)s.style.background=on?"#e91e63":"#ccc";if(k)k.style.transform=on?"translateX(22px)":"translateX(0)";}
+async function toggleNotifications(on){localStorage.setItem("notify_enabled",on?"1":"0");updateNotifyUI();if(on&&"Notification"in window&&Notification.permission==="default")await Notification.requestPermission();}
+function fire(title,body){if("Notification"in window&&Notification.permission==="granted"){new Notification(title,{body,icon:"https://cdn-icons-png.flaticon.com/512/3429/3429149.png"});}}
+function checkNotifications(){if(localStorage.getItem("notify_enabled")!=="1")return;if(typeof getCurrentStudent!=="function")return;const st=getCurrentStudent();if(!st||!st.classes)return;const now=new Date();const key=now.toISOString().slice(0,10);st.classes.filter(c=>c.dateStr===key&&!c.done).forEach(c=>{const hm=(c.time||"").split(" - ")[0];if(!hm)return;const [h,m]=hm.split(":").map(Number);const start=new Date(now.getFullYear(),now.getMonth(),now.getDate(),h,m);const diff=Math.round((start-now)/60000);NOTIFY_OFFSETS.forEach(o=>{if(diff===o){const id=key+"_"+c.id+"_"+o;if(notifySent[id])return;notifySent[id]=1;localStorage.setItem("notify_sent",JSON.stringify(notifySent));fire("📚 ตารางเรียน",o?`อีก ${o} นาที ถึงเวลาเรียน ${c.title}`:`ถึงเวลาเรียน ${c.title}`);}});});}
+window.addEventListener("load",()=>{updateNotifyUI();if("serviceWorker"in navigator){navigator.serviceWorker.register("sw.js").catch(()=>{});}setInterval(checkNotifications,30000);checkNotifications();});
 </script>
 
 </body>
