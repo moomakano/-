@@ -197,9 +197,13 @@
     }
 
     
+    .header-card{backdrop-filter:blur(18px)}
+    .class-card{position:relative;overflow:hidden}
+    .swipe-bg{position:absolute;right:0;top:0;bottom:0;width:84px;background:#ff4d4f;color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700}
+    .swipe-content{position:relative;background:inherit;transition:transform .22s ease}
+    .class-card.swiped .swipe-content{transform:translateX(-84px)}
     .calendar-swipe-area{touch-action:pan-y;overflow:hidden}
-    .calendar-track{transition:transform .25s ease;will-change:transform}
-    .tab-content{transition:opacity .18s ease,transform .18s ease}
+    .calendar-track{transition:transform .22s ease}
 
     /* Schedule & Calendar */
     .month-selector {
@@ -1201,16 +1205,18 @@
         const card = document.createElement('div');
         card.className = `class-card ${c.done ? 'completed' : 'pending'}`;
         card.innerHTML = `
-          <div>
-            <div class="time-badge">⏰ ${c.time}</div>
-            <div class="subject-title ${c.done ? 'strikethrough' : ''}">${c.title}</div>
-            <div class="location">${c.loc} (+${c.reward} ⭐️)</div>
-          </div>
-          <div class="card-actions">
-            <button class="delete-btn" onclick="removeClass(${c.id})" title="ลบวิชา"><i class="fa-solid fa-trash"></i></button>
-            <button class="check-btn ${c.done ? 'checked' : 'unchecked'}" onclick="toggleDone(${c.id})">
-              <i class="fa-solid fa-check"></i>
-            </button>
+          <div class="swipe-bg" onclick="removeClass(${c.id})"><i class="fa-solid fa-trash"></i>&nbsp;ลบ</div>
+          <div class="swipe-content">
+            <div style="display:flex;justify-content:space-between;align-items:center">
+              <div>
+                <div class="time-badge">⏰ ${c.time}</div>
+                <div class="subject-title ${c.done ? 'strikethrough' : ''}">${c.title}</div>
+                <div class="location">${c.loc} (+${c.reward} ⭐️)</div>
+              </div>
+              <button class="check-btn ${c.done ? 'checked' : 'unchecked'}" onclick="toggleDone(${c.id})">
+                <i class="fa-solid fa-check"></i>
+              </button>
+            </div>
           </div>
         `;
         list.appendChild(card);
@@ -1594,25 +1600,27 @@ function removeClass(id) {
     renderStudentSelector();
     renderCalendar();
   
-// ===== V8.1 Premium Swipe =====
+// ===== V9 Ultra interactions =====
 (function(){
- let sx=0,dx=0,active=false;
- function bindCal(){
+ let sx=0,dx=0;
+ function bindCalendar(){
   const el=document.getElementById('calendarSwipeArea'),track=document.getElementById('calendarTrack');
-  if(!el||!track) return;
-  el.addEventListener('touchstart',e=>{sx=e.touches[0].clientX;dx=0;active=true;track.style.transition='none';},{passive:true});
-  el.addEventListener('touchmove',e=>{if(!active)return;dx=e.touches[0].clientX-sx;track.style.transform=`translateX(${dx/2}px)`;},{passive:true});
-  el.addEventListener('touchend',()=>{active=false;track.style.transition='transform .22s ease';if(dx<-70){track.style.transform='translateX(-120px)';setTimeout(()=>{nextMonth();track.style.transition='none';track.style.transform='translateX(120px)';requestAnimationFrame(()=>{track.style.transition='transform .22s ease';track.style.transform='translateX(0)';});},120);}else if(dx>70){track.style.transform='translateX(120px)';setTimeout(()=>{prevMonth();track.style.transition='none';track.style.transform='translateX(-120px)';requestAnimationFrame(()=>{track.style.transition='transform .22s ease';track.style.transform='translateX(0)';});},120);}else{track.style.transform='translateX(0)';}},{passive:true});
+  if(!el||!track)return;
+  el.addEventListener('touchstart',e=>{sx=e.touches[0].clientX;dx=0;track.style.transition='none';},{passive:true});
+  el.addEventListener('touchmove',e=>{dx=e.touches[0].clientX-sx;track.style.transform=`translateX(${dx/2}px)`;},{passive:true});
+  el.addEventListener('touchend',()=>{track.style.transition='transform .22s ease';if(dx<-70){track.style.transform='translateX(-120px)';setTimeout(()=>{nextMonth();track.style.transition='none';track.style.transform='translateX(120px)';requestAnimationFrame(()=>{track.style.transition='transform .22s ease';track.style.transform='translateX(0)';});},110);}else if(dx>70){track.style.transform='translateX(120px)';setTimeout(()=>{prevMonth();track.style.transition='none';track.style.transform='translateX(-120px)';requestAnimationFrame(()=>{track.style.transition='transform .22s ease';track.style.transform='translateX(0)';});},110);}else track.style.transform='translateX(0)';},{passive:true});
  }
- function bindTabs(){
-  let start=0,d=0;
-  const views=['schedule','shop','settings'];
-  const box=document.querySelector('.container');
-  box.addEventListener('touchstart',e=>{start=e.touches[0].clientX;d=0;},{passive:true});
-  box.addEventListener('touchmove',e=>{d=e.touches[0].clientX-start;},{passive:true});
-  box.addEventListener('touchend',()=>{if(Math.abs(d)<90)return;const cur=document.querySelector('.tab-btn.active').id.replace('tab-','');let i=views.indexOf(cur);if(d<0&&i<2)i++;if(d>0&&i>0)i--;switchTab(views[i]);},{passive:true});
+ function bindSwipeCards(){
+  document.querySelectorAll('.class-card').forEach(card=>{
+    let start=0,d=0;
+    card.addEventListener('touchstart',e=>{start=e.touches[0].clientX;d=0;},{passive:true});
+    card.addEventListener('touchmove',e=>{d=e.touches[0].clientX-start;if(d<0)card.querySelector('.swipe-content').style.transform=`translateX(${Math.max(-84,d)}px)`;},{passive:true});
+    card.addEventListener('touchend',()=>{const c=card.querySelector('.swipe-content');if(d<-45){card.classList.add('swiped');c.style.transform='translateX(-84px)';}else{card.classList.remove('swiped');c.style.transform='translateX(0)';}});
+  });
  }
- if(document.readyState==='loading'){document.addEventListener('DOMContentLoaded',()=>{bindCal();bindTabs();});}else{bindCal();bindTabs();}
+ const oldRender=renderSchedule;
+ renderSchedule=function(){oldRender();bindSwipeCards();};
+ if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',bindCalendar);else bindCalendar();
 })();
 
 </script>
