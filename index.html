@@ -1344,14 +1344,47 @@ function addClass(){
 }
 
 
-    function removeClass(id) {
-      const st = getCurrentStudent();
-      st.classes = (st.classes || []).filter(c => c.id !== id);
-      saveAppData();
-      renderCalendar();
-      renderSchedule();
-      showToast('🗑️ ลบวิชาเรียบร้อยแล้ว');
+    
+function removeClass(id) {
+  const st = getCurrentStudent();
+  const item = (st.classes || []).find(c => c.id === id);
+  if (!item) return;
+
+  // สร้าง repeatId ให้ข้อมูลเก่าอัตโนมัติ
+  const groups = {};
+  (st.classes || []).forEach(c => {
+    const key = [c.title||'', c.teacher||'', c.time||'', c.loc||''].join('|');
+    (groups[key] = groups[key] || []).push(c);
+  });
+  Object.values(groups).forEach(list => {
+    if (list.length > 1) {
+      const rid = 'r_' + list[0].id;
+      list.forEach(c => { if (!c.repeatId) c.repeatId = rid; });
     }
+  });
+
+  if (!item.repeatId) {
+    if (!confirm('ลบวิชานี้ใช่หรือไม่?')) return;
+    st.classes = st.classes.filter(c => c.id !== id);
+  } else {
+    const mode = prompt('ลบตารางประจำ\n1=ลบเฉพาะวันนี้\n2=ลบทั้งตาราง\n3=ลบตั้งแต่วันนี้เป็นต้นไป');
+    if (mode === '1') {
+      st.classes = st.classes.filter(c => c.id !== id);
+    } else if (mode === '2') {
+      st.classes = st.classes.filter(c => c.repeatId !== item.repeatId);
+    } else if (mode === '3') {
+      st.classes = st.classes.filter(c => !(c.repeatId === item.repeatId && c.dateStr >= item.dateStr));
+    } else {
+      return;
+    }
+  }
+
+  saveAppData();
+  renderCalendar();
+  renderSchedule();
+  showToast('🗑️ ลบเรียบร้อย');
+}
+
 
     function addReward() {
       const icon = document.getElementById('inputRewardIcon').value.trim() || '🎁';
