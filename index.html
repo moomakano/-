@@ -933,10 +933,22 @@
         <input type="text" id="inputSubject" placeholder="เช่น ✏️ ภาษาไทย">
       </div>
       <div class="form-group">
+        <label>ตารางประจำ</label>
+        <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:6px;font-size:.8rem">
+          <label><input type="checkbox" class="repeat-day" value="1"> จ</label>
+          <label><input type="checkbox" class="repeat-day" value="2"> อ</label>
+          <label><input type="checkbox" class="repeat-day" value="3"> พ</label>
+          <label><input type="checkbox" class="repeat-day" value="4"> พฤ</label>
+          <label><input type="checkbox" class="repeat-day" value="5"> ศ</label>
+          <label><input type="checkbox" class="repeat-day" value="6"> ส</label>
+          <label><input type="checkbox" class="repeat-day" value="0"> อา</label>
+        </div>
+      </div>
+      <div class="form-group">
         <label>เวลาเรียน</label>
 <div style="display:flex;gap:10px">
 <div style="flex:1"><label style="font-size:.75rem;color:#888">เริ่ม</label><input type="time" id="inputStartTime" step="300" style="-webkit-appearance:auto;width:100%;padding:10px;border:1px solid #ddd;border-radius:12px"></div>
-<div style="flex:1"><label style="font-size:.75rem;color:#888">สิ้นสุด</label><input type="time" id="inputEndTime" step="300" style="-webkit-appearance:auto;width:100%;padding:10px;border:1px solid #ddd;border-radius:12px"></div>
+<div style="flex:1"><label style="font-size:.75rem;color:#888">สิ้นสุด (+1ชม. อัตโนมัติ)</label><input type="time" id="inputEndTime" step="300" style="-webkit-appearance:auto;width:100%;padding:10px;border:1px solid #ddd;border-radius:12px"></div>
 </div>
       </div>
       <div class="form-group">
@@ -1296,38 +1308,22 @@
     }
 
     function addClass() {
-      const title = document.getElementById('inputSubject').value.trim();
-      const start=document.getElementById('inputStartTime').value;const end=document.getElementById('inputEndTime').value;const time=(start&&end)?`${start} - ${end} น.`:'';
-      const loc = document.getElementById('inputLoc').value.trim();
-      const reward = parseInt(document.getElementById('inputStars').value) || 1;
-
-      if (!title || !time) {
-        showToast('⚠️ กรุณากรอกชื่อวิชาและเวลาเรียน');
-        return;
-      }
-
-      const st = getCurrentStudent();
-      if (!st.classes) st.classes = [];
-
-      st.classes.push({
-        id: Date.now(),
-        dateStr: formatDateKey(selectedDate),
-        title: title,
-        time: time,
-        loc: loc || '📍 ห้องเรียน',
-        reward: reward,
-        done: false
-      });
-
-      saveAppData();
-      renderCalendar();
-      renderSchedule();
-      closeModal('classModal');
-      showToast('✨ เพิ่มวิชาเรียนเรียบร้อย!');
-
-      document.getElementById('inputSubject').value = '';
-      document.getElementById('inputStartTime').value='';document.getElementById('inputEndTime').value='';
-      document.getElementById('inputLoc').value = '';
+      const title=document.getElementById('inputSubject').value.trim();
+      const start=document.getElementById('inputStartTime').value;
+      const end=document.getElementById('inputEndTime').value;
+      const time=(start&&end)?`${start} - ${end} น.`:'';
+      const loc=document.getElementById('inputLoc').value.trim();
+      const reward=parseInt(document.getElementById('inputStars').value)||1;
+      if(!title||!time){showToast('⚠️ กรุณากรอกชื่อวิชาและเวลาเรียน');return;}
+      const st=getCurrentStudent(); if(!st.classes) st.classes=[];
+      const repeat=[...document.querySelectorAll('.repeat-day:checked')].map(x=>parseInt(x.value));
+      const make=(d)=>st.classes.push({id:Date.now()+Math.random(),dateStr:formatDateKey(d),title,time,loc:loc||'📍 ห้องเรียน',reward,done:false});
+      if(repeat.length){
+        const base=new Date(selectedDate);
+        for(let i=0;i<365;i++){const d=new Date(base);d.setDate(base.getDate()+i);if(repeat.includes(d.getDay())) make(d);}
+      }else make(new Date(selectedDate));
+      saveAppData();renderCalendar();renderSchedule();closeModal('classModal');showToast('✨ เพิ่มตารางเรียนเรียบร้อย!');
+      document.getElementById('inputSubject').value='';document.getElementById('inputStartTime').value='';document.getElementById('inputEndTime').value='';document.getElementById('inputLoc').value='';document.querySelectorAll('.repeat-day').forEach(c=>c.checked=false);
     }
 
     function removeClass(id) {
