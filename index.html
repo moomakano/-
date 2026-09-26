@@ -65,8 +65,8 @@
     .header-card {
       background: var(--header-gradient);
       color: white;
-      padding: 20px;
-      padding-top: calc(20px + env(safe-area-inset-top));
+      padding:14px;
+      padding-top: calc(12px + env(safe-area-inset-top));
       border-bottom-left-radius: 28px;
       border-bottom-right-radius: 28px;
       box-shadow: 0 4px 15px rgba(233, 30, 99, 0.3);
@@ -76,7 +76,7 @@
       display: flex;
       justify-content: space-between;
       align-items: center;
-      margin-bottom: 12px;
+      margin-bottom:6px;
     }
 
     .title-group h1 {
@@ -787,7 +787,6 @@
 
       <div class="top-bar">
         <div class="title-group">
-          <h1 id="currentStudentTitle">👧 น้องต้นกล้า</h1>
           <div class="subtitle">ตารางเรียน & สะสมดาวแลกของรางวัล ⭐️</div>
         </div>
         <div class="star-badge" onclick="switchTab('shop')">
@@ -1093,7 +1092,7 @@
       });
 
       const st = getCurrentStudent();
-      document.getElementById('currentStudentTitle').innerText = `${st.icon} ${st.name}`;
+      const titleEl=document.getElementById('currentStudentTitle'); if(titleEl) titleEl.innerText=`${st.icon} ${st.name}`;
       updateStarDisplay();
       renderSchedule();
       renderShop();
