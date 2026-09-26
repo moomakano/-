@@ -6,6 +6,7 @@
   <title>ตารางเรียน & ร้านค้าของรางวัล</title>
   
   <!-- PWA & Web App Meta Tags -->
+  <link rel="manifest" href="manifest.json">
   <meta name="theme-color" content="#ff5e8e">
   <meta name="mobile-web-app-capable" content="yes">
   
@@ -13,6 +14,8 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="apple-mobile-web-app-title" content="ตารางเรียน">
+  <link rel="apple-touch-icon" href="https://cdn-icons-png.flaticon.com/512/3429/3429149.png">
+
   <!-- Google Fonts: Kanit & Prompt -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -191,15 +194,6 @@
 
     .tab-content.active {
       display: block;
-    }
-
-    
-    .calendar-swipe-area{
-      touch-action: pan-y;
-      position: relative;
-    }
-    .calendar-swipe-area.swiping{
-      transition: transform .15s ease;
     }
 
     /* Schedule & Calendar */
@@ -752,84 +746,7 @@
     .toast.show {
       transform: translateX(-50%) translateY(0);
     }
-  
-/* ===== Dark Mode ===== */
-:root{
-  --bg:#f6f3f5;
-  --surface:#ffffff;
-  --surface2:#ffe4ef;
-  --text:#1f2937;
-  --muted:#6b7280;
-}
-body{background:var(--bg);color:var(--text);transition:.25s;}
-body.dark{
-  --bg:#0f1115;
-  --surface:#181b22;
-  --surface2:#242833;
-  --text:#f3f4f6;
-  --muted:#9ca3af;
-}
-body.dark .header-card{background:linear-gradient(135deg,#ff4f9a,#c2185b);}
-body.dark .month-selector,
-body.dark .class-card,
-body.dark .reward-card,
-body.dark .setting-card,
-body.dark .day-number,
-body.dark .nav-tabs{
-  background:var(--surface)!important;
-  color:var(--text)!important;
-}
-body.dark .calendar-weekdays div,
-body.dark .legend,
-body.dark .subtitle{color:var(--muted)!important;}
-.dark-toggle{
-  width:46px;height:46px;border:none;border-radius:50%;
-  background:rgba(255,255,255,.18);color:#fff;cursor:pointer;
-  backdrop-filter:blur(10px);
-}
-
-
-/* ===== V11.1 iOS Liquid Glass ===== */
-:root{
- --glass:rgba(255,255,255,.16);
- --glass-border:rgba(255,255,255,.25);
-}
-body{transition:background .35s,color .35s;}
-body.dark{
-  background:#0b0d12;
-}
-body.dark .header-card{
-  background:linear-gradient(135deg,#ff5ba5,#c2185b);
-  box-shadow:0 20px 40px rgba(0,0,0,.35);
-}
-body.dark .month-selector,
-body.dark .nav-tabs,
-body.dark .class-card,
-body.dark .reward-card,
-body.dark .setting-card{
-  background:rgba(24,28,36,.72)!important;
-  backdrop-filter:blur(20px) saturate(160%);
-  border:1px solid rgba(255,255,255,.08);
-}
-body.dark .day-number{
-  background:rgba(34,39,48,.75)!important;
-  color:#f5f7fa!important;
-}
-body.dark .day-number.today{
-  box-shadow:0 0 24px rgba(255,20,120,.35);
-}
-.dark-toggle{
-  width:42px;height:42px;border-radius:50%;
-  background:var(--glass);
-  border:1px solid var(--glass-border);
-  backdrop-filter:blur(18px);
-}
-
-</style>
-  <link rel="manifest" href="manifest.json">
-  <link rel="icon" type="image/png" sizes="192x192" href="assets/icons/icon-192.png">
-  <link rel="apple-touch-icon" href="assets/icons/icon-192.png">
-  <meta name="theme-color" content="#FF2D7A">
+  </style>
 </head>
 <body>
 
@@ -839,7 +756,7 @@ body.dark .day-number.today{
       <!-- Student Selector Bar -->
       <div class="student-selector-bar" id="studentBar"></div>
 
-      <div class="top-bar"><button class="dark-toggle" onclick="toggleDarkMode()" title="Dark Mode">🌙</button>
+      <div class="top-bar">
         <div class="title-group">
           <h1 id="currentStudentTitle">👧 น้องต้นกล้า</h1>
           <div class="subtitle">ตารางเรียน & สะสมดาวแลกของรางวัล ⭐️</div>
@@ -868,7 +785,6 @@ body.dark .day-number.today{
   <div class="container">
     <!-- TAB 1: Schedule -->
     <div id="view-schedule" class="tab-content active">
-      <div id="calendarSwipeArea" class="calendar-swipe-area">
       <div class="month-selector">
         <button class="nav-btn" onclick="prevMonth()"><i class="fa-solid fa-caret-left"></i></button>
         <span class="month-label" id="monthLabel">มีนาคม 2569</span>
@@ -880,7 +796,6 @@ body.dark .day-number.today{
       </div>
 
       <div class="calendar-grid" id="calendarGrid"></div>
-      </div>
 
       <!-- Legend -->
       <div class="calendar-legend">
@@ -1016,8 +931,8 @@ body.dark .day-number.today{
 
       <div class="preset-title">💡 เลือกวิชาแนะนำด่วน:</div>
       <div class="preset-container">
-        <button class="preset-chip" onclick="applyPreset('✏️ ภาษาไทย (อ่าน-เขียน)', '16:30 - 17:30 น.', '', 1)">✏️ ภาษาไทย</button>
-        <button class="preset-chip" onclick="applyPreset('🔢 คณิตศาสตร์พื้นฐาน', '17:30 - 18:30 น.', '', 1)">🔢 คณิตศาสตร์</button>
+        <button class="preset-chip" onclick="applyPreset('✏️ ภาษาไทย (อ่าน-เขียน)', '16:30 - 17:30 น.', '📍 ห้องเรียนหลัก', 1)">✏️ ภาษาไทย</button>
+        <button class="preset-chip" onclick="applyPreset('🔢 คณิตศาสตร์พื้นฐาน', '17:30 - 18:30 น.', '📍 ห้องเรียนหลัก', 1)">🔢 คณิตศาสตร์</button>
         <button class="preset-chip" onclick="applyPreset('🇬🇧 ภาษาอังกฤษ (Vocab)', '16:30 - 17:30 น.', '📍 ออนไลน์', 1)">🇬🇧 ภาษาอังกฤษ</button>
         <button class="preset-chip" onclick="applyPreset('🧪 วิทยาศาสตร์น่ารู้', '17:30 - 18:30 น.', '📍 ห้องแล็บเด็ก', 1)">🧪 วิทยาศาสตร์</button>
         <button class="preset-chip" onclick="applyPreset('🎨 ศิลปะ & ระบายสี', '16:00 - 17:00 น.', '📍 ห้องศิลปะ', 1)">🎨 ศิลปะ</button>
@@ -1366,7 +1281,7 @@ body.dark .day-number.today{
           icon: icon,
           stars: 0,
           classes: [
-            { id: 1, dateStr: formatDateKey(new Date()), time: '16:30 - 17:30 น.', title: '✏️ ภาษาไทย (อ่าน-เขียน)', loc: '', done: false, reward: 1 }
+            { id: 1, dateStr: formatDateKey(new Date()), time: '16:30 - 17:30 น.', title: '✏️ ภาษาไทย (อ่าน-เขียน)', loc: '📍 ห้องเรียนหลัก', done: false, reward: 1 }
           ],
           rewards: [
             { id: 1, icon: '🍦', title: 'กินไอศกรีม 1 ถ้วย', cost: 3 }
@@ -1429,47 +1344,14 @@ function addClass(){
 }
 
 
-    
-function removeClass(id) {
-  const st = getCurrentStudent();
-  const item = (st.classes || []).find(c => c.id === id);
-  if (!item) return;
-
-  // สร้าง repeatId ให้ข้อมูลเก่าอัตโนมัติ
-  const groups = {};
-  (st.classes || []).forEach(c => {
-    const key = [c.title||'', c.teacher||'', c.time||'', c.loc||''].join('|');
-    (groups[key] = groups[key] || []).push(c);
-  });
-  Object.values(groups).forEach(list => {
-    if (list.length > 1) {
-      const rid = 'r_' + list[0].id;
-      list.forEach(c => { if (!c.repeatId) c.repeatId = rid; });
+    function removeClass(id) {
+      const st = getCurrentStudent();
+      st.classes = (st.classes || []).filter(c => c.id !== id);
+      saveAppData();
+      renderCalendar();
+      renderSchedule();
+      showToast('🗑️ ลบวิชาเรียบร้อยแล้ว');
     }
-  });
-
-  if (!item.repeatId) {
-    if (!confirm('ลบวิชานี้ใช่หรือไม่?')) return;
-    st.classes = st.classes.filter(c => c.id !== id);
-  } else {
-    const mode = prompt('ลบตารางประจำ\n1=ลบเฉพาะวันนี้\n2=ลบทั้งตาราง\n3=ลบตั้งแต่วันนี้เป็นต้นไป');
-    if (mode === '1') {
-      st.classes = st.classes.filter(c => c.id !== id);
-    } else if (mode === '2') {
-      st.classes = st.classes.filter(c => c.repeatId !== item.repeatId);
-    } else if (mode === '3') {
-      st.classes = st.classes.filter(c => !(c.repeatId === item.repeatId && c.dateStr >= item.dateStr));
-    } else {
-      return;
-    }
-  }
-
-  saveAppData();
-  renderCalendar();
-  renderSchedule();
-  showToast('🗑️ ลบเรียบร้อย');
-}
-
 
     function addReward() {
       const icon = document.getElementById('inputRewardIcon').value.trim() || '🎁';
@@ -1671,64 +1553,6 @@ function removeClass(id) {
     // Initialize App
     renderStudentSelector();
     renderCalendar();
-  
-// ===== Swipe Calendar V8 =====
-(function(){
-  let sx=0, dx=0;
-  const TH=60;
-  function bind(){
-    const el=document.getElementById('calendarSwipeArea');
-    if(!el) return;
-    el.addEventListener('touchstart',e=>{
-      sx=e.touches[0].clientX;
-      dx=0;
-      el.classList.add('swiping');
-    },{passive:true});
-    el.addEventListener('touchmove',e=>{
-      dx=e.touches[0].clientX-sx;
-      if(Math.abs(dx)>10){
-        el.style.transform=`translateX(${Math.max(-30,Math.min(30,dx/4))}px)`;
-      }
-    },{passive:true});
-    el.addEventListener('touchend',()=>{
-      el.style.transform='';
-      el.classList.remove('swiping');
-      if(dx<-TH) nextMonth();
-      else if(dx>TH) prevMonth();
-    },{passive:true});
-  }
-  if(document.readyState==='loading'){
-    document.addEventListener('DOMContentLoaded',bind);
-  }else bind();
-})();
-
-
-// ===== Dark Mode =====
-function applyTheme(mode){
-  document.body.classList.toggle('dark', mode==='dark');
-  const b=document.querySelector('.dark-toggle');
-  if(b) b.textContent = mode==='dark' ? '☀️':'🌙';
-}
-function toggleDarkMode(){
-  const next=document.body.classList.contains('dark')?'light':'dark';
-  localStorage.setItem('theme',next);
-  applyTheme(next);
-}
-(function(){
-  const saved=localStorage.getItem('theme');
-  const auto=window.matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light';
-  applyTheme(saved||auto);
-})();
-
-
-// ===== V11.1 Auto Theme Sync =====
-const mq=window.matchMedia('(prefers-color-scheme: dark)');
-mq.addEventListener?.('change',e=>{
-  if(!localStorage.getItem('theme')){
-    applyTheme(e.matches?'dark':'light');
-  }
-});
-
-</script>
+  </script>
 </body>
 </html>
