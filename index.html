@@ -1728,6 +1728,64 @@ mq.addEventListener?.('change',e=>{
   }
 });
 
+
+
+// ===== V12 Real Notification System =====
+const NOTIFY_MINUTES=[15,5,0];
+let __notifyTimer=null;
+function requestNotifyPermission(){
+  if(!('Notification' in window)) return;
+  if(Notification.permission==='default'){
+    Notification.requestPermission();
+  }
+}
+function playNotifyBeep(){
+  try{
+    const ctx=new (window.AudioContext||window.webkitAudioContext)();
+    const o=ctx.createOscillator(),g=ctx.createGain();
+    o.connect(g);g.connect(ctx.destination);
+    o.frequency.value=880;g.gain.value=.08;
+    o.start();
+    g.gain.exponentialRampToValueAtTime(.0001,ctx.currentTime+.35);
+    o.stop(ctx.currentTime+.35);
+  }catch(e){}
+}
+function notifyNow(title,body){
+  playNotifyBeep();
+  if('Notification' in window && Notification.permission==='granted'){
+    new Notification(title,{body,icon:'https://cdn-icons-png.flaticon.com/512/3429/3429149.png',badge:'https://cdn-icons-png.flaticon.com/512/3429/3429149.png'});
+  }else{
+    showToast('🔔 '+body);
+  }
+}
+function checkClassNotifications(){
+  const st=getCurrentStudent();
+  const now=new Date();
+  const today=formatDateKey(now);
+  (st.classes||[]).forEach(c=>{
+    if(c.done||c.dateStr!==today) return;
+    const m=(c.time||'').match(/(\d{2}:\d{2})/);
+    if(!m) return;
+    const [hh,mm]=m[1].split(':').map(Number);
+    const start=new Date(now.getFullYear(),now.getMonth(),now.getDate(),hh,mm);
+    const diff=Math.floor((start-now)/60000);
+    NOTIFY_MINUTES.forEach(mark=>{
+      if(diff<=mark && diff>mark-1){
+        const key=`notify_${c.id}_${mark}_${today}`;
+        if(localStorage.getItem(key)) return;
+        localStorage.setItem(key,'1');
+        const msg=mark===0?`ถึงเวลาเรียน ${c.title}`:`อีก ${mark} นาที ถึงเวลาเรียน ${c.title}`;
+        notifyNow('📚 ตารางเรียน',msg);
+      }
+    });
+  });
+}
+(function(){
+  const start=()=>{requestNotifyPermission();checkClassNotifications();clearInterval(__notifyTimer);__notifyTimer=setInterval(checkClassNotifications,30000);};
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',start);else start();
+  ['click','touchstart'].forEach(ev=>document.addEventListener(ev,requestNotifyPermission,{once:true}));
+})();
+
 </script>
 </body>
 </html>
