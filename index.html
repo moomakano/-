@@ -625,17 +625,15 @@
     }
 
     
-/* ===== V6.7 iPhone Event Form ===== */
-.day-wrap{display:flex;gap:8px;justify-content:space-between}
-.day-pill{flex:1;position:relative}
+/* ==== V6.8 Wheel Picker ==== */
+.wheel-row{display:grid;grid-template-columns:1fr 70px auto 70px 1fr;gap:8px;align-items:center}
+.wheel-select{appearance:none;-webkit-appearance:none;background:#fff;border:1px solid #ddd;border-radius:16px;padding:12px;font-size:1.05rem;font-weight:700;text-align:center}
+.wheel-end{background:#fff0f5;border-color:#f8bbd0;color:#e91e63}
+.day-wrap{display:flex;gap:6px;justify-content:space-between}
+.day-pill{flex:1}
 .day-pill input{display:none}
-.day-pill span{display:flex;justify-content:center;align-items:center;height:46px;border-radius:15px;background:#fff5f8;border:1.5px solid #f8bbd0;color:#c2185b;font-weight:700;transition:.18s}
-.day-pill input:checked+span{background:#e91e63;color:#fff;border-color:#e91e63;transform:scale(.97);box-shadow:0 6px 14px rgba(233,30,99,.25)}
-.time-card{display:grid;grid-template-columns:1fr auto 1fr;gap:10px;align-items:center}
-.time-box{padding:12px;border-radius:16px;font-size:1.05rem;font-weight:700;text-align:center}
-.time-start{background:#fff;border:1px solid #ddd}
-.time-end{background:#fff0f5;border:1px solid #f8bbd0;color:#e91e63}
-.btn-submit{padding:14px;border-radius:16px;font-size:1rem;position:sticky;bottom:0}
+.day-pill span{display:flex;justify-content:center;align-items:center;height:42px;border-radius:14px;background:#fff5f8;border:1px solid #f8bbd0;color:#c2185b;font-weight:700}
+.day-pill input:checked+span{background:#e91e63;color:#fff}
 
 /* Modal Form Overlay */
     .modal {
@@ -660,9 +658,9 @@
     .modal-content {
       background: white;
       border-radius: 24px;
-      padding: 18px;
+      padding: 24px;
       width: 100%;
-      max-width: 390px;
+      max-width: 400px;
       box-shadow: 0 10px 25px rgba(0,0,0,0.2);
       max-height: 90vh;
       overflow-y: auto;
@@ -960,13 +958,19 @@
 </div>
 
 <div class="form-group">
-<label>🕒 เวลาเรียน</label>
-<div class="time-card">
-<input type="time" id="inputStartTime" class="time-box time-start" step="300" style="-webkit-appearance:auto">
-<div style="font-size:1.2rem;color:#e91e63">→</div>
-<input type="time" id="inputEndTime" class="time-box time-end" readonly style="-webkit-appearance:auto">
+<label>🕒 เวลาเรียน (V6.8)</label>
+<div class="wheel-row">
+<select id="startHour" class="wheel-select"></select>
+<div style="text-align:center;font-weight:700">:</div>
+<select id="startMinute" class="wheel-select"></select>
+<div style="font-size:1.2rem;color:#e91e63;text-align:center">→</div>
+<div style="display:grid;grid-template-columns:70px 18px 70px;gap:6px">
+<select id="endHour" class="wheel-select wheel-end" disabled></select>
+<div style="text-align:center;font-weight:700;align-self:center">:</div>
+<select id="endMinute" class="wheel-select wheel-end" disabled></select>
 </div>
-<div style="font-size:.75rem;color:#888;margin-top:4px">เวลาเลิก +1 ชั่วโมงอัตโนมัติ</div>
+</div>
+<div style="font-size:.75rem;color:#888;margin-top:6px">เลือกชั่วโมงและนาที เวลาเลิก +1 ชั่วโมงอัตโนมัติ</div>
 </div>
 
 <div class="form-group">
@@ -1326,23 +1330,40 @@
       }
     }
 
-    
-function addClass(){
- const title=document.getElementById('inputSubject').value.trim();
- const start=document.getElementById('inputStartTime').value;
- const end=document.getElementById('inputEndTime').value;
- const loc=document.getElementById('inputLoc').value.trim();
- const reward=parseInt(document.getElementById('inputStars').value)||1;
- if(!title||!start){showToast('⚠️ กรุณาเลือกเวลาเริ่ม');return;}
- const st=getCurrentStudent(); if(!st.classes) st.classes=[];
- const repeat=[...document.querySelectorAll('.repeat-day:checked')].map(x=>+x.value);
- const make=d=>st.classes.push({id:Date.now()+Math.random(),dateStr:formatDateKey(d),title,time:`${start} - ${end} น.`,loc:loc||'📍 ห้องเรียน',reward,done:false});
- if(repeat.length){const base=new Date(selectedDate);for(let i=0;i<365;i++){const d=new Date(base);d.setDate(base.getDate()+i);if(repeat.includes(d.getDay()))make(d);}}
- else make(new Date(selectedDate));
- saveAppData();renderCalendar();renderSchedule();closeModal('classModal');showToast('✨ เพิ่มตารางเรียนแล้ว');
- document.getElementById('inputSubject').value='';document.getElementById('inputStartTime').value='';document.getElementById('inputEndTime').value='';document.getElementById('inputLoc').value='';document.querySelectorAll('.repeat-day').forEach(c=>c.checked=false);
-}
+    function addClass() {
+      const title = document.getElementById('inputSubject').value.trim();
+      const start=`${document.getElementById('startHour').value}:${document.getElementById('startMinute').value}`;const end=`${document.getElementById('endHour').value}:${document.getElementById('endMinute').value}`;const time=(start&&end)?`${start} - ${end} น.`:'';
+      const loc = document.getElementById('inputLoc').value.trim();
+      const reward = parseInt(document.getElementById('inputStars').value) || 1;
 
+      if (!title || !time) {
+        showToast('⚠️ กรุณากรอกชื่อวิชาและเวลาเรียน');
+        return;
+      }
+
+      const st = getCurrentStudent();
+      if (!st.classes) st.classes = [];
+
+      st.classes.push({
+        id: Date.now(),
+        dateStr: formatDateKey(selectedDate),
+        title: title,
+        time: time,
+        loc: loc || '📍 ห้องเรียน',
+        reward: reward,
+        done: false
+      });
+
+      saveAppData();
+      renderCalendar();
+      renderSchedule();
+      closeModal('classModal');
+      showToast('✨ เพิ่มวิชาเรียนเรียบร้อย!');
+
+      document.getElementById('inputSubject').value = '';
+      
+      document.getElementById('inputLoc').value = '';
+    }
 
     function removeClass(id) {
       const st = getCurrentStudent();
