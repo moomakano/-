@@ -53,36 +53,24 @@
       padding-bottom: calc(40px + env(safe-area-inset-bottom));
       padding-top: env(safe-area-inset-top);
       overflow-x: hidden;
-    
-      margin:0;
-      width:100%;
-      min-height:100dvh;
-      overflow-x:hidden;
-      overscroll-behavior-y:contain;
-      padding-bottom: max(110px, calc(env(safe-area-inset-bottom) + 90px));
+    }
 
-
-    .container{
-      width:100%;
-      max-width:100%;
-      margin:0 auto;
-      padding:0 12px;
+    .container {
+      width: min(100%, 768px);
+      margin: 0 auto;
+      padding: 0 clamp(12px, 3vw, 20px);
     }
 
     /* Header Section */
-     .header-card {
+    .header-card {
       background: var(--header-gradient);
       color: white;
-      padding:12px;
-      padding-top: calc(10px + env(safe-area-inset-top));
-      border-bottom-left-radius:22px;
-      border-bottom-right-radius:22px;
+      padding: 20px;
+      padding-top: calc(20px + env(safe-area-inset-top));
+      border-bottom-left-radius: 28px;
+      border-bottom-right-radius: 28px;
       box-shadow: 0 4px 15px rgba(233, 30, 99, 0.3);
-    
-      width:100%;
-      border-bottom-left-radius:26px;
-      border-bottom-right-radius:26px;
-
+    }
 
     .top-bar {
       display: flex;
@@ -372,15 +360,7 @@
       gap: 6px;
       cursor: pointer;
       box-shadow: 0 2px 8px rgba(233, 30, 99, 0.3);
-    
-      position:fixed;
-      right:16px;
-      bottom:max(24px, calc(env(safe-area-inset-bottom) + 16px));
-      z-index:999;
-      padding:16px 18px;
-      border-radius:22px;
-      box-shadow:0 10px 30px rgba(233,30,99,.35);
-
+    }
 
     .card-list {
       display: flex;
@@ -794,37 +774,6 @@
       .calendar-grid{gap:8px;}
       .day-number{font-size:1rem;}
     }
-
-
-@media (max-width:430px){
-  .student-selector-bar{margin-bottom:6px}
-  .star-badge{padding:6px 10px;font-size:1rem}
-  .title-group h1{font-size:1.1rem}
-  .subtitle{font-size:.78rem}
-  .month-selector{margin-top:10px}
-  .calendar-grid{gap:5px}
-  .day-number{min-height:42px}
-  .section-header{margin-bottom:70px}
-}
-
-
-.header-card{position:sticky;top:0;z-index:50}
-.container{width:100%;max-width:100%;padding:0 10px}
-.month-selector{margin-top:8px}
-.calendar-weekdays{margin-top:10px}
-.calendar-grid{gap:5px}
-.day-number{min-height:44px;font-size:.92rem}
-.section-header{margin:8px 0 80px}
-.add-btn{position:fixed;right:14px;bottom:max(18px,calc(env(safe-area-inset-bottom)+12px));z-index:999;padding:15px 18px;border-radius:20px}
-@media(max-width:430px){
- .student-selector-bar{margin-bottom:4px}
- .top-bar{margin-bottom:6px}
- .title-group h1{font-size:1.1rem}
- .subtitle{font-size:.78rem}
- .nav-tabs{margin-top:6px}
- .tab-btn{padding:7px 2px;font-size:.78rem}
- .month-label{font-size:1rem}
-}
 
 </style>
 </head>
