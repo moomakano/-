@@ -828,18 +828,6 @@ body.dark .day-number.today{
   backdrop-filter:blur(18px);
 }
 
-
-/* ===== V16 Real Alarm ===== */
-.alarm-overlay{position:fixed;inset:0;background:linear-gradient(180deg,#ff5e8e,#e91e63);display:none;align-items:center;justify-content:center;z-index:9999;padding:24px}
-.alarm-overlay.show{display:flex}
-.alarm-card{background:#fff;border-radius:30px;padding:28px;text-align:center;max-width:360px;width:100%;box-shadow:0 20px 50px rgba(0,0,0,.35)}
-.alarm-card h2{color:#e91e63;margin:10px 0}
-.alarm-card p{color:#555;margin-bottom:18px}
-.alarm-btn{width:100%;padding:14px;border:none;border-radius:18px;font-weight:700;font-size:1rem;margin-top:10px;cursor:pointer}
-.alarm-primary{background:linear-gradient(135deg,#ff5e8e,#e91e63);color:#fff}
-.alarm-secondary{background:#f3f4f6}
-.reminder-mini{background:#fff5f8;border:1px solid #f8bbd0;border-radius:12px;padding:8px 10px;font-size:.8rem;color:#c2185b;margin-top:6px}
-
 </style>
 </head>
 <body>
@@ -1296,7 +1284,7 @@ body.dark .day-number.today{
             <div class="location">${c.loc} (+${c.reward} ⭐️)</div>
           </div>
           <div class="card-actions">
-            <button class="delete-btn" onclick="removeClass(${c.id})" title="ลบวิชา"><i class="fa-solid fa-trash"></i></button><button class="btn-action primary" style="padding:6px 10px;border-radius:10px" onclick="openReminderSheet(${c.id})">🔔</button>
+            <button class="delete-btn" onclick="removeClass(${c.id})" title="ลบวิชา"><i class="fa-solid fa-trash"></i></button>
             <button class="check-btn ${c.done ? 'checked' : 'unchecked'}" onclick="toggleDone(${c.id})">
               <i class="fa-solid fa-check"></i>
             </button>
@@ -1742,73 +1730,65 @@ mq.addEventListener?.('change',e=>{
 
 </script>
 
-<div class="alarm-overlay" id="alarmOverlay">
-  <div class="alarm-card">
-    <div style="font-size:54px">⏰</div>
-    <h2 id="alarmTitle">ถึงเวลาเรียน</h2>
-    <p id="alarmTime">เริ่มเรียนได้เลย</p>
-    <button class="alarm-btn alarm-primary" onclick="dismissAlarm()">เริ่มเรียน</button>
-    <button class="alarm-btn alarm-secondary" onclick="snoozeAlarm()">เลื่อน 5 นาที</button>
-  </div>
-</div>
+<script id="v16-fix">
+let __audioCtx=null;
+function unlockAudio(){
+  if(!__audioCtx){
+    __audioCtx=new (window.AudioContext||window.webkitAudioContext)();
+  }
+  __audioCtx.resume().catch(()=>{});
+}
+document.addEventListener('touchstart',unlockAudio,{once:true});
+document.addEventListener('click',unlockAudio,{once:true});
 
-<script>
-let reminderMap=JSON.parse(localStorage.getItem('class_reminders')||'{}');
-let snoozeUntil=0;
-function openReminderSheet(id){
- const m=prompt("ตั้งเวลาก่อนเรียน (60/30/15/10/5/0 นาที)", reminderMap[id]??30);
- if(m===null)return;
- reminderMap[id]=parseInt(m)||0;
- localStorage.setItem('class_reminders',JSON.stringify(reminderMap));
- showToast("🔔 ตั้งเตือน "+m+" นาที");
+function playAlarmSound(){
+  unlockAudio();
+  const ctx=__audioCtx;
+  if(!ctx)return;
+  [0,300,600].forEach(ms=>{
+    setTimeout(()=>{
+      const o=ctx.createOscillator();
+      const g=ctx.createGain();
+      o.type='sine';
+      o.frequency.value=900;
+      o.connect(g); g.connect(ctx.destination);
+      g.gain.setValueAtTime(0.0001,ctx.currentTime);
+      g.gain.exponentialRampToValueAtTime(0.35,ctx.currentTime+0.02);
+      g.gain.exponentialRampToValueAtTime(0.0001,ctx.currentTime+0.35);
+      o.start();
+      o.stop(ctx.currentTime+0.35);
+    },ms);
+  });
+  if(navigator.vibrate) navigator.vibrate([200,120,200]);
 }
-function playAlarm(){
- try{
-   const ctx=new (window.AudioContext||window.webkitAudioContext)();
-   [0,350,700].forEach((t)=>{
-     setTimeout(()=>{
-       const o=ctx.createOscillator(),g=ctx.createGain();
-       o.frequency.value=880;
-       o.connect(g);g.connect(ctx.destination);
-       g.gain.setValueAtTime(.0001,ctx.currentTime);
-       g.gain.exponentialRampToValueAtTime(.25,ctx.currentTime+.02);
-       g.gain.exponentialRampToValueAtTime(.0001,ctx.currentTime+.28);
-       o.start();o.stop(ctx.currentTime+.3);
-     },t);
-   });
- }catch(e){}
- if(navigator.vibrate)navigator.vibrate([250,150,250]);
+
+let __sent=JSON.parse(localStorage.getItem('alarm_sent')||'{}');
+function checkAlarmNow(){
+  if(typeof getCurrentStudent!=='function') return;
+  const st=getCurrentStudent();
+  if(!st||!st.classes) return;
+  const now=new Date();
+  const key=now.toISOString().slice(0,10);
+  st.classes.filter(c=>c.dateStr===key&&!c.done).forEach(c=>{
+    const hm=(c.time||'').split(' - ')[0];
+    if(!hm) return;
+    const [h,m]=hm.split(':').map(Number);
+    const start=new Date(now.getFullYear(),now.getMonth(),now.getDate(),h,m,0);
+    const diff=(start-now)/60000;
+    const off=parseInt((JSON.parse(localStorage.getItem('class_reminders')||'{}')[c.id]??30));
+    const id=key+'_'+c.id+'_'+off;
+    if(diff<=off && diff>-1 && !__sent[id]){
+      __sent[id]=1;
+      localStorage.setItem('alarm_sent',JSON.stringify(__sent));
+      playAlarmSound();
+      alert('⏰ ถึงเวลาเรียน\n'+c.title+'\n'+c.time);
+    }
+  });
 }
-function showAlarm(title,time){
- document.getElementById('alarmTitle').textContent=title;
- document.getElementById('alarmTime').textContent=time;
- document.getElementById('alarmOverlay').classList.add('show');
- playAlarm();
-}
-function dismissAlarm(){document.getElementById('alarmOverlay').classList.remove('show');}
-function snoozeAlarm(){snoozeUntil=Date.now()+5*60000;dismissAlarm();}
-function checkRealAlarm(){
- if(Date.now()<snoozeUntil)return;
- const st=getCurrentStudent?.(); if(!st)return;
- const now=new Date(); const key=now.toISOString().slice(0,10);
- st.classes.filter(c=>c.dateStr===key&&!c.done).forEach(c=>{
-   const hm=(c.time||'').split(' - ')[0]; if(!hm)return;
-   const [h,m]=hm.split(':').map(Number);
-   const start=new Date(now.getFullYear(),now.getMonth(),now.getDate(),h,m);
-   const diff=Math.round((start-now)/60000);
-   const off=reminderMap[c.id]??30;
-   const id=key+'_'+c.id+'_'+off;
-   const sent=JSON.parse(localStorage.getItem('alarm_sent')||'{}');
-   if(diff===off && !sent[id]){
-      sent[id]=1; localStorage.setItem('alarm_sent',JSON.stringify(sent));
-      showAlarm(c.title,c.time);
-      if('Notification' in window && Notification.permission==='granted'){
-        new Notification('📚 '+c.title,{body:'ถึงเวลาเตรียมเรียน'});
-      }
-   }
- });
-}
-window.addEventListener('load',()=>{if('Notification'in window&&Notification.permission==='default')Notification.requestPermission();setInterval(checkRealAlarm,10000);});
+setInterval(checkAlarmNow,1000);
+window.addEventListener('focus',checkAlarmNow);
+document.addEventListener('visibilitychange',()=>{if(!document.hidden)checkAlarmNow();});
 </script>
+
 </body>
 </html>
