@@ -828,24 +828,9 @@ body.dark .day-number.today{
   backdrop-filter:blur(18px);
 }
 
-
-/* ===== V12.1 Spring Pull Refresh ===== */
-body{overscroll-behavior-y:contain;}
-#pullRefresh{position:fixed;left:50%;top:calc(env(safe-area-inset-top) + 8px);
-transform:translate(-50%,-90px) scale(.85);width:54px;height:54px;border-radius:50%;
-background:rgba(255,255,255,.18);backdrop-filter:blur(18px) saturate(180%);
-border:1px solid rgba(255,255,255,.25);display:flex;align-items:center;justify-content:center;
-box-shadow:0 10px 30px rgba(0,0,0,.18);z-index:9999;transition:transform .18s cubic-bezier(.2,.9,.3,1.3),opacity .18s;opacity:0}
-#pullRefresh.show{opacity:1;}
-#pullRefresh i{color:#fff;font-size:22px;text-shadow:0 1px 3px rgba(0,0,0,.25);}
-#pullRefresh.spin i{animation:ptrSpin .7s linear infinite;}
-@keyframes ptrSpin{to{transform:rotate(360deg)}}
-.header-card.ptr-stretch{transition:none;}
-
 </style>
 </head>
 <body>
-<div id='pullRefresh'><i class='fa-solid fa-arrow-rotate-right'></i></div>
 
   <!-- Header Card -->
   <div class="header-card">
@@ -1744,50 +1729,17 @@ mq.addEventListener?.('change',e=>{
 });
 
 
-// ===== V12.1 Spring Pull Refresh =====
-(function(){
- let startY=0,pulling=false;
- const ind=document.getElementById('pullRefresh');
- const header=document.querySelector('.header-card');
- const area=document.getElementById('calendarSwipeArea')||document.body;
- function refreshUI(){
-   try{renderCalendar&&renderCalendar();}catch(e){}
-   try{renderSchedule&&renderSchedule();}catch(e){}
-   try{renderShop&&renderShop();}catch(e){}
-   try{renderStudentSelector&&renderStudentSelector();}catch(e){}
- }
- function resetSpring(){
-   if(header){header.style.transition='transform .35s cubic-bezier(.22,1,.36,1)';
-     header.style.transform='translateY(0) scaleY(1)';
-     setTimeout(()=>header.style.transition='',360);}
-   ind.classList.remove('show','spin');
-   ind.style.transform='translate(-50%,-90px) scale(.85)';
-   pulling=false;
- }
- window.addEventListener('touchstart',e=>{
-   if(window.scrollY===0){startY=e.touches[0].clientY;pulling=true;}
- },{passive:true});
- window.addEventListener('touchmove',e=>{
-   if(!pulling)return;
-   const d=Math.max(0,e.touches[0].clientY-startY);
-   if(d<6)return;
-   ind.classList.add('show');
-   const p=Math.min(d,120);
-   ind.style.transform=`translate(-50%,${Math.min(p*0.55,28)}px) scale(${0.85+p/180})`;
-   if(header){const s=1+p/700;header.style.transform=`translateY(${Math.min(p*.45,42)}px) scaleY(${s})`;}
-   d>70?ind.classList.add('spin'):ind.classList.remove('spin');
- },{passive:true});
- window.addEventListener('touchend',e=>{
-   if(!pulling)return;
-   const d=e.changedTouches[0].clientY-startY;
-   if(d>70){
-      navigator.vibrate&&navigator.vibrate(25);
-      refreshUI();
-      setTimeout(resetSpring,180);
-      try{showToast&&showToast('🔄 อัปเดตข้อมูลแล้ว');}catch(e){}
-   }else resetSpring();
- },{passive:true});
-})();
+// ===== V12.2 PWA Auto Update =====
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.getRegistration().then(async reg=>{
+    if(reg){ await reg.update(); }
+  });
+}
+async function forceRefreshPWA(){
+  const reg=await navigator.serviceWorker.getRegistration();
+  if(reg) await reg.update();
+  window.forceRefreshPWA();
+}
 </script>
 </body>
 </html>
