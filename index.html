@@ -1729,16 +1729,33 @@ mq.addEventListener?.('change',e=>{
 });
 
 
-// ===== V12.2 PWA Auto Update =====
+// ===== V12.3 Force Update (PWA จริง) =====
 if ('serviceWorker' in navigator) {
-  navigator.serviceWorker.getRegistration().then(async reg=>{
-    if(reg){ await reg.update(); }
+  window.addEventListener('load', async () => {
+    const reg = await navigator.serviceWorker.register('./sw.js', {updateViaCache:'none'});
+    await reg.update();
+
+    function promptUpdate(worker){
+      if(!worker) return;
+      worker.postMessage({type:'SKIP_WAITING'});
+    }
+
+    if(reg.waiting) promptUpdate(reg.waiting);
+
+    reg.addEventListener('updatefound',()=>{
+      const nw=reg.installing;
+      if(!nw) return;
+      nw.addEventListener('statechange',()=>{
+        if(nw.state==='installed' && navigator.serviceWorker.controller){
+          promptUpdate(nw);
+        }
+      });
+    });
+
+    navigator.serviceWorker.addEventListener('controllerchange',()=>{
+      window.navigator.serviceWorker.getRegistration().then(r=>r&&r.update()).finally(()=>window.location.reload());
+    });
   });
-}
-async function forceRefreshPWA(){
-  const reg=await navigator.serviceWorker.getRegistration();
-  if(reg) await reg.update();
-  window.forceRefreshPWA();
 }
 </script>
 </body>
