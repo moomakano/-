@@ -828,6 +828,26 @@ body.dark .day-number.today{
   backdrop-filter:blur(18px);
 }
 
+
+/* ===== V15 Bottom Sheet Reminder ===== */
+.reminder-btn{background:linear-gradient(135deg,#ff5e8e,#e91e63);color:#fff;border:none;border-radius:14px;padding:8px 12px;font-family:inherit;font-weight:600;cursor:pointer}
+.sheet-overlay{position:fixed;inset:0;background:rgba(0,0,0,.35);backdrop-filter:blur(4px);display:none;align-items:end;justify-content:center;z-index:3000}
+.sheet-overlay.show{display:flex}
+.sheet{background:#fff;width:100%;max-width:500px;border-radius:28px 28px 0 0;padding:16px 18px calc(22px + env(safe-area-inset-bottom));animation:sheetUp .22s ease}
+@keyframes sheetUp{from{transform:translateY(100%)}to{transform:translateY(0)}}
+.drag{width:46px;height:5px;background:#ddd;border-radius:99px;margin:0 auto 12px}
+.rem-title{font-size:1.15rem;font-weight:700;color:#ad1457;margin-bottom:4px}
+.rem-sub{font-size:.82rem;color:#777;margin-bottom:14px}
+.rem-switch{display:flex;justify-content:space-between;align-items:center;background:#fff5f8;border:1px solid #f8bbd0;border-radius:18px;padding:12px 14px;margin-bottom:14px}
+.ios-switch{width:56px;height:32px;border-radius:999px;background:#d1d5db;position:relative;cursor:pointer;transition:.25s}
+.ios-switch.on{background:#ff5e8e}
+.ios-switch::after{content:"";position:absolute;left:3px;top:3px;width:26px;height:26px;border-radius:50%;background:#fff;transition:.25s}
+.ios-switch.on::after{transform:translateX(24px)}
+.wheel-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+.wheel-item{padding:14px;border-radius:16px;background:#fff5f8;border:1px solid #f8bbd0;text-align:center;font-weight:700;color:#c2185b;cursor:pointer}
+.wheel-item.active{background:linear-gradient(135deg,#ff5e8e,#e91e63);color:#fff}
+.done-btn{margin-top:18px;width:100%;padding:14px;border:none;border-radius:18px;background:linear-gradient(135deg,#ff5e8e,#e91e63);color:#fff;font-weight:700;font-size:1rem;cursor:pointer}
+
 </style>
 </head>
 <body>
@@ -987,16 +1007,6 @@ body.dark .day-number.today{
       </div>
     </div>
   </div>
-      <div class="setting-card" id="notifySettingCard">
-        <div class="setting-item">
-          <div class="setting-info">
-            <div class="setting-title">🔔 แจ้งเตือนก่อนเรียน</div>
-            <div class="setting-desc">30, 15, 5 นาที และเมื่อถึงเวลาเรียน</div>
-          </div>
-          <button class="btn-action primary" onclick="toggleNotifications()">เปิด</button>
-        </div>
-      </div>
-
 
   <!-- Modal 1: Add/Edit Student Form -->
   <div class="modal" id="studentModal">
@@ -1294,7 +1304,7 @@ body.dark .day-number.today{
             <div class="location">${c.loc} (+${c.reward} ⭐️)</div>
           </div>
           <div class="card-actions">
-            <button class="delete-btn" onclick="removeClass(${c.id})" title="ลบวิชา"><i class="fa-solid fa-trash"></i></button>
+            <button class="delete-btn" onclick="removeClass(${c.id})" title="ลบวิชา"><i class="fa-solid fa-trash"></i></button><button class="reminder-btn" onclick="openReminderSheet()">🔔</button>
             <button class="check-btn ${c.done ? 'checked' : 'unchecked'}" onclick="toggleDone(${c.id})">
               <i class="fa-solid fa-check"></i>
             </button>
@@ -1740,14 +1750,34 @@ mq.addEventListener?.('change',e=>{
 
 </script>
 
+<div class="sheet-overlay" id="remSheet" onclick="if(event.target===this)closeReminderSheet()">
+  <div class="sheet">
+    <div class="drag"></div>
+    <div class="rem-title">🔔 ตั้งเวลาแจ้งเตือน</div>
+    <div class="rem-sub">เลือกเวลาที่ต้องการให้เตือนก่อนเรียน</div>
+    <div class="rem-switch">
+      <div><b>เปิดการแจ้งเตือน</b><div style="font-size:.8rem;color:#777">จำค่าไว้ทุกครั้ง</div></div>
+      <div id="notifySwitch" class="ios-switch" onclick="event.stopPropagation();toggleNotifySwitch()"></div>
+    </div>
+    <div class="wheel-grid" id="wheelGrid">
+      <div class="wheel-item" data-v="60" onclick="pickReminder(this)">60 นาที</div>
+      <div class="wheel-item" data-v="30" onclick="pickReminder(this)">30 นาที</div>
+      <div class="wheel-item" data-v="15" onclick="pickReminder(this)">15 นาที</div>
+      <div class="wheel-item" data-v="10" onclick="pickReminder(this)">10 นาที</div>
+      <div class="wheel-item" data-v="5" onclick="pickReminder(this)">5 นาที</div>
+      <div class="wheel-item" data-v="0" onclick="pickReminder(this)">ถึงเวลา</div>
+    </div>
+    <button class="done-btn" onclick="closeReminderSheet()">เสร็จสิ้น</button>
+  </div>
+</div>
 <script>
-function toggleNotifications(){
- if(!("Notification" in window)){alert("อุปกรณ์ไม่รองรับ Notification");return;}
- Notification.requestPermission().then(p=>{
-   if(p==="granted"){localStorage.setItem("notify_enabled","1");alert("เปิดแจ้งเตือนแล้ว");}
-   else alert("กรุณาอนุญาต Notification");
- });
-}
+let currentReminderOffset=localStorage.getItem('notify_offset')||'30';
+function openReminderSheet(){document.getElementById('remSheet').classList.add('show');syncReminderUI();}
+function closeReminderSheet(){document.getElementById('remSheet').classList.remove('show');}
+function pickReminder(el){currentReminderOffset=el.dataset.v;localStorage.setItem('notify_offset',currentReminderOffset);syncReminderUI();}
+function syncReminderUI(){document.querySelectorAll('.wheel-item').forEach(x=>x.classList.toggle('active',x.dataset.v===currentReminderOffset));document.getElementById('notifySwitch').classList.toggle('on',localStorage.getItem('notify_enabled')==='1');}
+async function toggleNotifySwitch(){const on=!(localStorage.getItem('notify_enabled')==='1');localStorage.setItem('notify_enabled',on?'1':'0');syncReminderUI();if(on&&'Notification'in window&&Notification.permission==='default'){await Notification.requestPermission();}}
+window.addEventListener('load',syncReminderUI);
 </script>
 
 </body>
