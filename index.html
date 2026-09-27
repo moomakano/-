@@ -828,9 +828,20 @@ body.dark .day-number.today{
   backdrop-filter:blur(18px);
 }
 
+
+/* Pull to Refresh */
+body{overscroll-behavior-y:contain;}
+#pullRefresh{position:fixed;top:calc(env(safe-area-inset-top) + 8px);left:50%;transform:translate(-50%,-80px);width:46px;height:46px;border-radius:50%;background:rgba(255,255,255,.9);backdrop-filter:blur(12px);display:flex;align-items:center;justify-content:center;box-shadow:0 8px 20px rgba(0,0,0,.15);transition:transform .25s ease;z-index:9999}
+#pullRefresh.show{transform:translate(-50%,0)}
+#pullRefresh.spin i{animation:spin .8s linear infinite}
+#pullRefresh i{color:#e91e63;font-size:20px}
+@keyframes spin{from{transform:rotate(0)}to{transform:rotate(360deg)}}
+
 </style>
 </head>
 <body>
+<div id="pullRefresh"><i class="fa-solid fa-arrow-rotate-right"></i></div>
+
 
   <!-- Header Card -->
   <div class="header-card">
@@ -1727,6 +1738,14 @@ mq.addEventListener?.('change',e=>{
     applyTheme(e.matches?'dark':'light');
   }
 });
+
+
+// Pull to Refresh (PWA)
+let __ptrStartY=0,__ptrPull=false;
+const __ptr=document.getElementById("pullRefresh");
+window.addEventListener("touchstart",e=>{if(window.scrollY===0){__ptrStartY=e.touches[0].clientY;__ptrPull=true;}},{passive:true});
+window.addEventListener("touchmove",e=>{if(!__ptrPull)return;const d=e.touches[0].clientY-__ptrStartY;if(d>20)__ptr.classList.add("show");if(d>80)__ptr.classList.add("spin");},{passive:true});
+window.addEventListener("touchend",e=>{if(!__ptrPull)return;const d=e.changedTouches[0].clientY-__ptrStartY;if(d>80)location.reload();__ptr.classList.remove("show","spin");__ptrPull=false;});
 
 </script>
 </body>
