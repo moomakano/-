@@ -828,23 +828,6 @@ body.dark .day-number.today{
   backdrop-filter:blur(18px);
 }
 
-
-/* ===== V17 Integrated Reminder ===== */
-.notify-setting{display:flex;justify-content:space-between;align-items:center;padding:12px 0}
-.notify-setting .btn{background:linear-gradient(135deg,#ff5e8e,#e91e63);color:#fff;border:none;border-radius:14px;padding:10px 14px;font-family:inherit;font-weight:600}
-.sheet-mask{position:fixed;inset:0;background:rgba(0,0,0,.35);display:none;align-items:end;z-index:6000}
-.sheet-mask.show{display:flex}
-.sheet{background:#fff;width:100%;max-width:500px;margin:auto;border-radius:28px 28px 0 0;padding:18px 18px calc(20px + env(safe-area-inset-bottom))}
-.sheet .drag{width:48px;height:5px;background:#ddd;border-radius:99px;margin:0 auto 14px}
-.sheet-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin:16px 0}
-.sheet-btn{padding:14px;border-radius:16px;border:1px solid #f8bbd0;background:#fff5f8;color:#c2185b;font-weight:700}
-.sheet-btn.active{background:linear-gradient(135deg,#ff5e8e,#e91e63);color:#fff}
-.alarm-full{position:fixed;inset:0;background:linear-gradient(180deg,#ff5e8e,#e91e63);display:none;align-items:center;justify-content:center;z-index:7000}
-.alarm-full.show{display:flex}
-.alarm-card{background:#fff;border-radius:28px;padding:26px;max-width:340px;width:90%;text-align:center}
-.alarm-card button{width:100%;padding:14px;border:none;border-radius:18px;margin-top:10px;font-weight:700}
-.alarm-card .ok{background:linear-gradient(135deg,#ff5e8e,#e91e63);color:#fff}
-
 </style>
 </head>
 <body>
@@ -957,16 +940,6 @@ body.dark .day-number.today{
             </button>
           </div>
           <div class="student-list-manage" id="studentManageList"></div>
-        </div>
-      </div>
-
-      <div class="setting-card">
-        <div class="notify-setting">
-          <div>
-            <div class="setting-title">🔔 แจ้งเตือนก่อนเรียน</div>
-            <div class="setting-desc" id="notifyDesc">เตือนก่อน 30 นาที</div>
-          </div>
-          <button class="btn" onclick="openNotifySheet()">ตั้งค่า</button>
         </div>
       </div>
 
@@ -1311,7 +1284,7 @@ body.dark .day-number.today{
             <div class="location">${c.loc} (+${c.reward} ⭐️)</div>
           </div>
           <div class="card-actions">
-            <button class="delete-btn" onclick="removeClass(${c.id})" title="ลบวิชา"><i class="fa-solid fa-trash"></i></button><button class="btn-action primary" style="padding:6px 10px;border-radius:10px" onclick="openNotifySheet()">🔔</button>
+            <button class="delete-btn" onclick="removeClass(${c.id})" title="ลบวิชา"><i class="fa-solid fa-trash"></i></button>
             <button class="check-btn ${c.done ? 'checked' : 'unchecked'}" onclick="toggleDone(${c.id})">
               <i class="fa-solid fa-check"></i>
             </button>
@@ -1756,87 +1729,5 @@ mq.addEventListener?.('change',e=>{
 });
 
 </script>
-
-<div class="sheet-mask" id="notifySheet" onclick="if(event.target===this)closeNotifySheet()">
-  <div class="sheet">
-    <div class="drag"></div>
-    <div class="modal-title">🔔 ตั้งเวลาแจ้งเตือน</div>
-    <div class="sheet-grid">
-      <button class="sheet-btn" data-v="60" onclick="setNotify(60)">60</button>
-      <button class="sheet-btn" data-v="30" onclick="setNotify(30)">30</button>
-      <button class="sheet-btn" data-v="15" onclick="setNotify(15)">15</button>
-      <button class="sheet-btn" data-v="10" onclick="setNotify(10)">10</button>
-      <button class="sheet-btn" data-v="5" onclick="setNotify(5)">5</button>
-      <button class="sheet-btn" data-v="0" onclick="setNotify(0)">0</button>
-    </div>
-    <button class="btn-submit" onclick="closeNotifySheet()">บันทึก</button>
-  </div>
-</div>
-
-<div class="alarm-full" id="alarmFull">
-  <div class="alarm-card">
-    <div style="font-size:54px">⏰</div>
-    <h2 id="alarmSubject">ถึงเวลาเรียน</h2>
-    <p id="alarmClock"></p>
-    <button class="ok" onclick="dismissAlarm()">เริ่มเรียน</button>
-    <button class="btn-cancel" onclick="snooze5()">เลื่อน 5 นาที</button>
-  </div>
-</div>
-
-<script>
-let notifyOffset=parseInt(localStorage.getItem('notify_offset')||30);
-let alarmCache=JSON.parse(localStorage.getItem('alarm_cache')||'{}');
-let audioCtx,snoozeUntil=0;
-function syncNotifyUI(){
- document.getElementById('notifyDesc').textContent='เตือนก่อน '+(notifyOffset===0?'ถึงเวลา':notifyOffset+' นาที');
- document.querySelectorAll('.sheet-btn').forEach(b=>b.classList.toggle('active',parseInt(b.dataset.v)===notifyOffset));
-}
-function openNotifySheet(){document.getElementById('notifySheet').classList.add('show');syncNotifyUI();}
-function closeNotifySheet(){document.getElementById('notifySheet').classList.remove('show');}
-function setNotify(v){notifyOffset=v;localStorage.setItem('notify_offset',v);syncNotifyUI();}
-function unlockAudio(){if(!audioCtx)audioCtx=new(window.AudioContext||window.webkitAudioContext)();audioCtx.resume().catch(()=>{});}
-document.addEventListener('click',unlockAudio,{once:true});
-document.addEventListener('touchstart',unlockAudio,{once:true});
-function beep(){
- unlockAudio();
- [0,300,600].forEach(ms=>setTimeout(()=>{
-   const o=audioCtx.createOscillator(),g=audioCtx.createGain();
-   o.frequency.value=900;o.connect(g);g.connect(audioCtx.destination);
-   g.gain.setValueAtTime(.001,audioCtx.currentTime);
-   g.gain.exponentialRampToValueAtTime(.25,audioCtx.currentTime+.02);
-   g.gain.exponentialRampToValueAtTime(.001,audioCtx.currentTime+.3);
-   o.start();o.stop(audioCtx.currentTime+.3);
- },ms));
- if(navigator.vibrate)navigator.vibrate([250,150,250]);
-}
-function fireAlarm(c){
- document.getElementById('alarmSubject').textContent=c.title;
- document.getElementById('alarmClock').textContent=c.time;
- document.getElementById('alarmFull').classList.add('show');
- beep();
-}
-function dismissAlarm(){document.getElementById('alarmFull').classList.remove('show');}
-function snooze5(){snoozeUntil=Date.now()+300000;dismissAlarm();}
-function checkAlarm(){
- if(Date.now()<snoozeUntil)return;
- if(typeof getCurrentStudent!=='function')return;
- const st=getCurrentStudent(); if(!st||!st.classes)return;
- const now=new Date(),key=formatDateKey(now);
- st.classes.filter(c=>c.dateStr===key&&!c.done).forEach(c=>{
-   const hm=(c.time||'').split(' - ')[0]; if(!hm)return;
-   const [h,m]=hm.split(':').map(Number);
-   const start=new Date(now.getFullYear(),now.getMonth(),now.getDate(),h,m,0);
-   const diff=(start-now)/60000;
-   const id=key+'_'+c.id+'_'+notifyOffset;
-   if(diff<=notifyOffset&&diff>-1&&!alarmCache[id]){
-      alarmCache[id]=1;
-      localStorage.setItem('alarm_cache',JSON.stringify(alarmCache));
-      fireAlarm(c);
-   }
- });
-}
-window.addEventListener('load',()=>{syncNotifyUI();setInterval(checkAlarm,1000);});
-</script>
-
 </body>
 </html>
