@@ -1263,7 +1263,7 @@ transition:bottom .35s cubic-bezier(.2,.9,.3,1.2);box-shadow:0 -10px 30px rgba(0
 
     function applyPreset(subject, time, loc, stars) {
       document.getElementById('inputSubject').value = subject;
-      const p=time.replace(' น.','').split(' - ');document.getElementById('inputStartTime').value=(p[0]||'').trim();document.getElementById('inputEndTime').value=(p[1]||'').trim();
+      
       document.getElementById('inputLoc').value = loc;
       document.getElementById('inputStars').value = stars;
     }
@@ -1431,10 +1431,15 @@ transition:bottom .35s cubic-bezier(.2,.9,.3,1.2);box-shadow:0 -10px 30px rgba(0
 function addClass(){
  const title=document.getElementById('inputSubject').value.trim();
  const start=document.getElementById('inputStartTime').value;
- const end=document.getElementById('inputEndTime').value;
+ let end=document.getElementById('inputEndTime').value;
  const loc=document.getElementById('inputLoc').value.trim();
  const reward=parseInt(document.getElementById('inputStars').value)||1;
  if(!title||!start){showToast('⚠️ กรุณาเลือกเวลาเริ่ม');return;}
+ if(!end){
+   const [h,m]=start.split(':').map(Number);const d=new Date();d.setHours(h,m,0,0);d.setMinutes(d.getMinutes()+60);
+   end=String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0');
+   document.getElementById('inputEndTime').value=end;
+ }
  const st=getCurrentStudent(); if(!st.classes) st.classes=[];
  const repeat=[...document.querySelectorAll('.repeat-day:checked')].map(x=>+x.value);
  const make=d=>st.classes.push({id:Date.now()+Math.random(),dateStr:formatDateKey(d),title,time:`${start} - ${end} น.`,loc:loc||'📍 ห้องเรียน',reward,done:false});
@@ -1782,47 +1787,6 @@ function parseVoice(txt){
    speechSynthesis.speak(new SpeechSynthesisUtterance(`${subject} เวลา ${time} พร้อมบันทึกแล้ว`));
  }
 }
-
-// ===== V14.3.2 Time Fix + Custom Pull Refresh =====
-(function(){
- const start=document.getElementById('inputStartTime');
- const end=document.getElementById('inputEndTime');
- function calcEnd(){
-   if(!start||!end||!start.value)return;
-   const [h,m]=start.value.split(':').map(Number);
-   const d=new Date();d.setHours(h,m,0,0);d.setMinutes(d.getMinutes()+60);
-   end.value=String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0');
- }
- start?.addEventListener('input',calcEnd);
- start?.addEventListener('change',calcEnd);
-
- const oldApply=window.applyPreset;
- window.applyPreset=function(subject,time,loc,stars){
-   oldApply(subject,time,loc,stars);
-   const p=time.replace(' น.','').split(' - ');
-   if(start) start.value=(p[0]||'').trim();
-   calcEnd();
- };
-
- let sy=0,pulling=false;
- const ind=document.getElementById('pullRefresh');
- window.addEventListener('touchstart',e=>{
-   if(window.scrollY===0){sy=e.touches[0].clientY;pulling=true;}
- },{passive:true});
- window.addEventListener('touchmove',e=>{
-   if(!pulling)return;
-   const dy=e.touches[0].clientY-sy;
-   if(dy>20){ind.style.top=Math.min(18,dy-40)+'px';}
- },{passive:true});
- window.addEventListener('touchend',e=>{
-   if(!pulling)return;
-   const dy=(e.changedTouches?.[0]?.clientY||0)-sy;
-   pulling=false;
-   ind.style.top='-60px';
-   if(dy>80) location.reload();
- },{passive:true});
-})();
-
 </script>
 
 <button id="voiceFab" class="voice-fab" onclick="toggleVoice()">🎤</button>
@@ -1838,7 +1802,7 @@ function parseVoice(txt){
 </div>
 
 
-<div id="pullRefresh" style="position:fixed;top:-60px;left:50%;transform:translateX(-50%);background:#fff;padding:10px 16px;border-radius:20px;box-shadow:0 6px 18px rgba(0,0,0,.18);z-index:99999;transition:top .2s">🔄 ดึงลงเพื่อรีเฟรช</div>
+<button id="refreshFab" onclick="location.reload()" style="position:fixed;left:18px;bottom:calc(24px + env(safe-area-inset-bottom));width:56px;height:56px;border:none;border-radius:50%;background:#ffffffcc;backdrop-filter:blur(12px);box-shadow:0 8px 20px rgba(0,0,0,.18);z-index:9999;font-size:22px">↻</button>
 
 </body>
 </html>
