@@ -829,38 +829,23 @@ body.dark .day-number.today{
 }
 
 
-/* ===== V14 Voice Assistant ===== */
-.voice-fab{position:fixed;right:18px;bottom:calc(24px + env(safe-area-inset-bottom));
-width:64px;height:64px;border-radius:50%;border:none;
-background:linear-gradient(135deg,#ff5e8e,#e91e63);color:#fff;
-box-shadow:0 12px 28px rgba(233,30,99,.45);z-index:9999;font-size:28px;cursor:pointer}
-.voice-fab.listening{animation:pulseMic 1s infinite}
-@keyframes pulseMic{0%{box-shadow:0 0 0 0 rgba(233,30,99,.45)}70%{box-shadow:0 0 0 18px rgba(233,30,99,0)}100%{box-shadow:0 0 0 0 rgba(233,30,99,0)}}
-.voice-sheet{position:fixed;left:0;right:0;bottom:-100%;background:rgba(255,255,255,.94);
-backdrop-filter:blur(20px);border-radius:24px 24px 0 0;padding:22px;z-index:10000;
-transition:bottom .35s cubic-bezier(.2,.9,.3,1.2);box-shadow:0 -10px 30px rgba(0,0,0,.18)}
-.voice-sheet.show{bottom:0}
-.wave{display:flex;justify-content:center;gap:6px;height:36px;align-items:flex-end;margin:12px 0}
-.wave span{width:6px;height:10px;border-radius:8px;background:#e91e63;animation:wave 1s ease-in-out infinite}
-.wave span:nth-child(2){animation-delay:.1s}.wave span:nth-child(3){animation-delay:.2s}.wave span:nth-child(4){animation-delay:.3s}.wave span:nth-child(5){animation-delay:.4s}
+/* ===== V15 AI Voice Assistant ===== */
+#voiceFab{position:fixed;right:18px;bottom:calc(24px + env(safe-area-inset-bottom));width:68px;height:68px;border:none;border-radius:50%;
+background:linear-gradient(135deg,#ff5e8e,#e91e63);color:#fff;font-size:30px;
+box-shadow:0 14px 30px rgba(233,30,99,.45);z-index:10001}
+#voiceFab.listening{animation:voicePulse 1.2s infinite}
+@keyframes voicePulse{0%{box-shadow:0 0 0 0 rgba(233,30,99,.45)}70%{box-shadow:0 0 0 18px rgba(233,30,99,0)}100%{box-shadow:0 0 0 0 rgba(233,30,99,0)}}
+#voicePanel{position:fixed;left:0;right:0;bottom:-100%;background:rgba(255,255,255,.95);backdrop-filter:blur(22px);
+border-radius:26px 26px 0 0;padding:20px;z-index:10000;transition:bottom .35s cubic-bezier(.2,.9,.3,1.2);box-shadow:0 -10px 30px rgba(0,0,0,.2)}
+#voicePanel.show{bottom:0}
+.voiceWave{display:flex;justify-content:center;gap:6px;height:38px;align-items:flex-end;margin:12px 0}
+.voiceWave span{width:6px;height:10px;border-radius:8px;background:#e91e63;animation:wave 1s ease-in-out infinite}
+.voiceWave span:nth-child(2){animation-delay:.1s}.voiceWave span:nth-child(3){animation-delay:.2s}.voiceWave span:nth-child(4){animation-delay:.3s}.voiceWave span:nth-child(5){animation-delay:.4s}
 @keyframes wave{0%,100%{height:10px}50%{height:34px}}
-
-
-/* ==== V15.1 Apple Intelligence Voice ==== */
-#aiVoiceFab{position:fixed;right:18px;bottom:calc(24px + env(safe-area-inset-bottom));width:66px;height:66px;border-radius:50%;border:none;background:linear-gradient(135deg,#ff5e8e,#e91e63);color:#fff;font-size:30px;box-shadow:0 14px 30px rgba(233,30,99,.45);z-index:10001}
-#aiVoiceFab.listening{animation:aiPulse 1.2s infinite}
-@keyframes aiPulse{0%{box-shadow:0 0 0 0 rgba(233,30,99,.45)}70%{box-shadow:0 0 0 18px rgba(233,30,99,0)}100%{box-shadow:0 0 0 0 rgba(233,30,99,0)}}
-#aiSheet{position:fixed;left:0;right:0;bottom:-100%;background:rgba(255,255,255,.95);backdrop-filter:blur(22px);border-radius:24px 24px 0 0;padding:22px;z-index:10000;transition:bottom .35s cubic-bezier(.2,.9,.3,1.2);box-shadow:0 -10px 30px rgba(0,0,0,.18)}
-#aiSheet.show{bottom:0}
-.aiWave{display:flex;justify-content:center;gap:6px;height:36px;align-items:flex-end;margin:10px 0}
-.aiWave span{width:6px;height:10px;border-radius:8px;background:#e91e63;animation:wave 1s ease-in-out infinite}
-.aiWave span:nth-child(2){animation-delay:.1s}.aiWave span:nth-child(3){animation-delay:.2s}.aiWave span:nth-child(4){animation-delay:.3s}.aiWave span:nth-child(5){animation-delay:.4s}
-@keyframes wave{0%,100%{height:10px}50%{height:34px}}
-.aiItem{padding:10px;border:1px solid #f8bbd0;border-radius:14px;background:#fff8fb;margin-top:8px}
-.aiActions{display:flex;gap:10px;margin-top:14px}
-.aiBtn{flex:1;padding:14px;border:none;border-radius:16px;font-weight:700}
-.aiPrimary{background:#e91e63;color:#fff}.aiSecondary{background:#eee}
-.aiHint{font-size:.8rem;color:#777;text-align:center}
+.voiceItem{padding:12px;border:1px solid #f8bbd0;border-radius:14px;background:#fff8fb;margin-top:8px}
+.voiceActions{display:flex;gap:10px;margin-top:16px}
+.voiceBtn{flex:1;padding:14px;border:none;border-radius:16px;font-weight:700}
+.voicePrimary{background:#e91e63;color:#fff}.voiceSecondary{background:#eee}
 
 </style>
 </head>
@@ -1763,120 +1748,35 @@ mq.addEventListener?.('change',e=>{
 });
 
 
-// ===== V14 Voice Assistant =====
-let recog,listening=false;
-const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
-function toggleVoice(){document.getElementById('voiceSheet').classList.toggle('show')}
-if(SR){recog=new SR();recog.lang='th-TH';recog.interimResults=true;recog.continuous=false;
-recog.onstart=()=>{listening=true;voiceFab.classList.add('listening');voiceStatus.textContent='กำลังฟัง...';};
-recog.onend=()=>{listening=false;voiceFab.classList.remove('listening');voiceStatus.textContent='พร้อมใช้งาน';};
-recog.onresult=e=>{let t='';for(let i=e.resultIndex;i<e.results.length;i++)t+=e.results[i][0].transcript;voiceResult.textContent=t;
-if(e.results[e.results.length-1].isFinal) parseVoice(t);};}
-function startVoice(){if(recog)recog.start();else alert('เบราว์เซอร์นี้ไม่รองรับเสียง');}
-function stopVoice(){if(recog)recog.stop();}
-function parseVoice(txt){
- const map={จันทร์:1,อังคาร:2,พุธ:3,'พฤหัส':4,'พฤ':4,ศุกร์:5,เสาร์:6,อาทิตย์:0};
- let day=Object.keys(map).find(k=>txt.includes(k));
- let hm=/([0-2]?\d)[:.](\d{2})/.exec(txt);let time='16:30';
- if(hm) time=hm[1].padStart(2,'0')+':'+hm[2];
- else if(txt.includes('หกโมงครึ่ง')) time='18:30';
- else if(txt.includes('สี่โมงครึ่ง')) time='16:30';
- else if(txt.includes('เก้าโมง')) time='09:00';
- else if(txt.includes('บ่ายสาม')) time='15:00';
- let teacher=(txt.match(/ครู\S+/)||[''])[0];
- let subject='📚 วิชา';
- ['ภาษาไทย','อังกฤษ','คณิต','วิทย์','เปียโน','ว่ายน้ำ','คอม','Computer','Social'].forEach(s=>{if(txt.includes(s))subject=s;});
- voiceResult.innerHTML=`<b>วัน:</b> ${day||'-'}<br><b>เวลา:</b> ${time}<br><b>ครู:</b> ${teacher||'-'}<br><b>วิชา:</b> ${subject}`;
- if(typeof applyPreset==='function'){
-   const endH=(parseInt(time.split(':')[0])+1).toString().padStart(2,'0')+':'+time.split(':')[1];
-   applyPreset(subject,`${time} - ${endH} น.`,teacher,1);
-   if(day!==undefined){document.querySelectorAll('.repeat-day').forEach(c=>c.checked=(+c.value===map[day]));}
-   document.getElementById('voiceSheet').classList.remove('show');
-   if(typeof openModal==='function') openModal('classModal');
- }
- if('speechSynthesis' in window){
-   speechSynthesis.cancel();
-   speechSynthesis.speak(new SpeechSynthesisUtterance(`${subject} เวลา ${time} พร้อมบันทึกแล้ว`));
- }
-}
-
-// ==== V15.1 Apple Intelligence Voice ====
-const AIRec=window.SpeechRecognition||window.webkitSpeechRecognition;
-let aiRec,aiBuffer="";
+// ===== V15 AI Voice Assistant =====
+const V15SR=window.SpeechRecognition||window.webkitSpeechRecognition;
+let v15Rec,v15Text="";
 const dayMap={จันทร์:1,อังคาร:2,พุธ:3,'พฤหัส':4,'พฤ':4,ศุกร์:5,เสาร์:6,อาทิตย์:0};
-const timeMap=[['หกโมงครึ่ง','18:30'],['ห้าโมงครึ่ง','17:30'],['สี่โมงครึ่ง','16:30'],['หนึ่งทุ่ม','19:00'],['สองทุ่ม','20:00'],['บ่ายสาม','15:00'],['บ่ายสอง','14:00'],['บ่ายโมง','13:00'],['เที่ยง','12:00'],['เก้าโมงครึ่ง','09:30'],['เก้าโมง','09:00'],['สิบโมง','10:00'],['สิบเอ็ดโมง','11:00']];
-function toggleAISheet(){document.getElementById('aiSheet').classList.toggle('show')}
-function parseTime(t){let m=t.match(/(\d{1,2})[:.](\d{2})/);if(m)return m[1].padStart(2,'0')+':'+m[2];for(const[k,v]of timeMap){if(t.includes(k))return v;}return'16:30';}
-function parseVoiceMulti(text){
- let parts=text.split(/(?=วัน(?:จันทร์|อังคาร|พุธ|พฤหัส|พฤ|ศุกร์|เสาร์|อาทิตย์))/).filter(Boolean);
- if(parts.length===0)parts=[text];
- return parts.map(p=>{
-  let day=Object.keys(dayMap).find(k=>p.includes(k));
-  let time=parseTime(p);
-  let [h,m]=time.split(':').map(Number);
-  let end=String((h+1)%24).padStart(2,'0')+':'+String(m).padStart(2,'0');
-  let teacher=(p.match(/ครู[^\s]+/)||[''])[0];
-  let subject='📚 วิชา';
-  ['ภาษาไทย','อังกฤษ','คณิต','วิทย์','เปียโน','ว่ายน้ำ','คอม','Computer','Social'].forEach(s=>{if(p.includes(s))subject=s;});
-  return{day,time,end,teacher,subject};
- });
-}
-function renderAI(items){
- const box=document.getElementById('aiResults');
- box.innerHTML=items.map((x,i)=>`<div class="aiItem"><b>รายการ ${i+1}</b><br>📅 ${x.day||'-'}<br>🕒 ${x.time}-${x.end}<br>👩‍🏫 ${x.teacher||'-'}<br>📚 ${x.subject}</div>`).join('');
-}
-function applyAI(items){
- const st=typeof getCurrentStudent==='function'?getCurrentStudent():null;
- if(!st)return;
- st.classes=st.classes||[];
- items.forEach(x=>{
-   if(!x.day)return;
-   const base=new Date(selectedDate||new Date());
-   for(let i=0;i<365;i++){
-     const d=new Date(base);d.setDate(base.getDate()+i);
-     if(d.getDay()===dayMap[x.day]){
-       st.classes.push({id:Date.now()+Math.random(),dateStr:formatDateKey(d),title:x.subject,time:`${x.time} - ${x.end} น.`,loc:x.teacher||'📍 ห้องเรียน',reward:1,done:false});
-       break;
-     }
-   }
- });
- saveAppData&&saveAppData();renderCalendar&&renderCalendar();renderSchedule&&renderSchedule();renderStudentSelector&&renderStudentSelector();
- speechSynthesis&&speechSynthesis.speak(new SpeechSynthesisUtterance(`เพิ่ม ${items.length} รายการเรียบร้อยแล้ว`));
- document.getElementById('aiSheet').classList.remove('show');
-}
-if(AIRec){aiRec=new AIRec();aiRec.lang='th-TH';aiRec.interimResults=true;aiRec.continuous=true;
- aiRec.onstart=()=>{aiVoiceFab.classList.add('listening');aiStatus.textContent='กำลังฟัง...';aiBuffer='';};
- aiRec.onend=()=>{aiVoiceFab.classList.remove('listening');aiStatus.textContent='พร้อมใช้งาน';};
- aiRec.onresult=e=>{let t='';for(let i=e.resultIndex;i<e.results.length;i++)t+=e.results[i][0].transcript;aiBuffer=t;renderAI(parseVoiceMulti(aiBuffer));};
-}
-function startAIListen(){if(aiRec)aiRec.start();}
-function stopAIListen(){if(aiRec){aiRec.stop();applyAI(parseVoiceMulti(aiBuffer));}}
+const timeMap=[['หกโมงครึ่ง','18:30'],['หกโมงสิบห้า','18:15'],['หกโมงสี่สิบห้า','18:45'],['ห้าโมงครึ่ง','17:30'],['สี่โมงครึ่ง','16:30'],['หนึ่งทุ่ม','19:00'],['สองทุ่ม','20:00'],['บ่ายสาม','15:00'],['บ่ายสอง','14:00'],['บ่ายโมง','13:00'],['เที่ยง','12:00'],['เก้าโมงครึ่ง','09:30'],['เก้าโมง','09:00'],['สิบโมง','10:00'],['สิบเอ็ดโมง','11:00']];
+function toggleVoicePanel(){document.getElementById('voicePanel').classList.toggle('show')}
+function parseTimeV15(t){let m=t.match(/(\d{1,2})[:.](\d{2})/);if(m)return m[1].padStart(2,'0')+':'+m[2];for(const[k,v]of timeMap){if(t.includes(k))return v;}return'16:30';}
+function splitVoice(text){let p=text.split(/(?=วัน(?:จันทร์|อังคาร|พุธ|พฤหัส|พฤ|ศุกร์|เสาร์|อาทิตย์))/).filter(Boolean);return p.length?p:[text];}
+function parseItems(text){return splitVoice(text).map(seg=>{let day=Object.keys(dayMap).find(k=>seg.includes(k));let time=parseTimeV15(seg);let[h,m]=time.split(':').map(Number);let end=String((h+1)%24).padStart(2,'0')+':'+String(m).padStart(2,'0');let teacher=(seg.match(/ครู[^\s]+/)||[''])[0];let subject='📚 วิชา';['ภาษาไทย','อังกฤษ','คณิต','วิทย์','เปียโน','ว่ายน้ำ','คอม','Computer','Social'].forEach(s=>{if(seg.includes(s))subject=s;});return{day,time,end,teacher,subject};});}
+function renderPreview(items){const box=document.getElementById('voicePreview');box.innerHTML=items.map((x,i)=>`<div class='voiceItem'><b>รายการ ${i+1}</b><br>📅 ${x.day||'-'}<br>🕒 ${x.time}-${x.end}<br>👩‍🏫 ${x.teacher||'-'}<br>📚 ${x.subject}</div>`).join('');}
+function saveItems(items){const st=getCurrentStudent&&getCurrentStudent();if(!st)return;st.classes=st.classes||[];items.forEach(x=>{if(!x.day)return;const base=new Date(selectedDate||new Date());for(let i=0;i<365;i++){const d=new Date(base);d.setDate(base.getDate()+i);if(d.getDay()===dayMap[x.day]){st.classes.push({id:Date.now()+Math.random(),dateStr:formatDateKey(d),title:x.subject,time:`${x.time} - ${x.end} น.`,loc:x.teacher||'📍 ห้องเรียน',reward:1,done:false});break;}}});saveAppData&&saveAppData();renderCalendar&&renderCalendar();renderSchedule&&renderSchedule();renderStudentSelector&&renderStudentSelector();speechSynthesis&&speechSynthesis.speak(new SpeechSynthesisUtterance(`เพิ่ม ${items.filter(i=>i.day).length} รายการเรียบร้อยแล้ว`));document.getElementById('voicePanel').classList.remove('show');}
+if(V15SR){v15Rec=new V15SR();v15Rec.lang='th-TH';v15Rec.interimResults=true;v15Rec.continuous=true;
+v15Rec.onstart=()=>{voiceFab.classList.add('listening');voiceStatus.textContent='กำลังฟัง...';v15Text='';};
+v15Rec.onend=()=>{voiceFab.classList.remove('listening');voiceStatus.textContent='พร้อมใช้งาน';};
+v15Rec.onresult=e=>{let t='';for(let i=e.resultIndex;i<e.results.length;i++)t+=e.results[i][0].transcript;v15Text=t;renderPreview(parseItems(v15Text));};}
+function startVoiceV15(){if(v15Rec)v15Rec.start();}
+function stopVoiceV15(){if(v15Rec){v15Rec.stop();saveItems(parseItems(v15Text));}}
 </script>
 
-<button id="voiceFab" class="voice-fab" onclick="toggleVoice()">🎤</button>
-<div id="voiceSheet" class="voice-sheet">
-  <div style="text-align:center;font-weight:700;font-size:20px;color:#c2185b">🎤 AI Voice Assistant V14</div>
-  <div class="wave"><span></span><span></span><span></span><span></span><span></span></div>
-  <div id="voiceStatus" style="text-align:center;color:#666">กดเริ่มแล้วพูด เช่น “วันจันทร์ หกโมงครึ่ง ครูปาล์ม ภาษาไทย”</div>
-  <div id="voiceResult" style="margin-top:12px;padding:12px;border-radius:16px;background:#fff0f5;min-height:54px"></div>
-  <div style="display:flex;gap:10px;margin-top:16px">
-    <button onclick="startVoice()" style="flex:1;padding:14px;border:none;border-radius:16px;background:#e91e63;color:#fff;font-weight:700">เริ่มฟัง</button>
-    <button onclick="stopVoice()" style="flex:1;padding:14px;border:none;border-radius:16px;background:#eee;font-weight:700">หยุด</button>
+<button id="voiceFab" onclick="toggleVoicePanel()">🎤</button>
+<div id="voicePanel">
+  <div style="text-align:center;font-size:20px;font-weight:700;color:#c2185b">AI Voice Assistant V15</div>
+  <div class="voiceWave"><span></span><span></span><span></span><span></span><span></span></div>
+  <div id="voiceStatus" style="text-align:center;color:#666">กดเริ่มแล้วพูดได้หลายรายการ</div>
+  <div id="voicePreview"></div>
+  <div class="voiceActions">
+    <button class="voiceBtn voicePrimary" onclick="startVoiceV15()">เริ่มฟัง</button>
+    <button class="voiceBtn voiceSecondary" onclick="stopVoiceV15()">หยุด</button>
   </div>
-</div>
-
-
-<button id="aiVoiceFab" onclick="toggleAISheet()">🎤</button>
-<div id="aiSheet">
-  <div style="text-align:center;font-size:20px;font-weight:700;color:#c2185b">Apple Intelligence Voice V15.1</div>
-  <div class="aiWave"><span></span><span></span><span></span><span></span><span></span></div>
-  <div id="aiStatus" style="text-align:center;color:#666">กดเริ่ม แล้วพูดได้หลายรายการต่อเนื่อง</div>
-  <div id="aiResults"></div>
-  <div class="aiActions">
-    <button class="aiBtn aiPrimary" onclick="startAIListen()">เริ่มฟัง</button>
-    <button class="aiBtn aiSecondary" onclick="stopAIListen()">หยุด</button>
-  </div>
-  <div class="aiHint">ตัวอย่าง: วันจันทร์ หกโมงครึ่ง ครูปาล์ม ภาษาไทย วันเสาร์ เก้าโมง ครูกล้า คณิต</div>
 </div>
 
 </body>
