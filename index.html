@@ -828,6 +828,23 @@ body.dark .day-number.today{
   backdrop-filter:blur(18px);
 }
 
+
+/* ===== V14 Voice Assistant ===== */
+.voice-fab{position:fixed;right:18px;bottom:calc(24px + env(safe-area-inset-bottom));
+width:64px;height:64px;border-radius:50%;border:none;
+background:linear-gradient(135deg,#ff5e8e,#e91e63);color:#fff;
+box-shadow:0 12px 28px rgba(233,30,99,.45);z-index:9999;font-size:28px;cursor:pointer}
+.voice-fab.listening{animation:pulseMic 1s infinite}
+@keyframes pulseMic{0%{box-shadow:0 0 0 0 rgba(233,30,99,.45)}70%{box-shadow:0 0 0 18px rgba(233,30,99,0)}100%{box-shadow:0 0 0 0 rgba(233,30,99,0)}}
+.voice-sheet{position:fixed;left:0;right:0;bottom:-100%;background:rgba(255,255,255,.94);
+backdrop-filter:blur(20px);border-radius:24px 24px 0 0;padding:22px;z-index:10000;
+transition:bottom .35s cubic-bezier(.2,.9,.3,1.2);box-shadow:0 -10px 30px rgba(0,0,0,.18)}
+.voice-sheet.show{bottom:0}
+.wave{display:flex;justify-content:center;gap:6px;height:36px;align-items:flex-end;margin:12px 0}
+.wave span{width:6px;height:10px;border-radius:8px;background:#e91e63;animation:wave 1s ease-in-out infinite}
+.wave span:nth-child(2){animation-delay:.1s}.wave span:nth-child(3){animation-delay:.2s}.wave span:nth-child(4){animation-delay:.3s}.wave span:nth-child(5){animation-delay:.4s}
+@keyframes wave{0%,100%{height:10px}50%{height:34px}}
+
 </style>
 </head>
 <body>
@@ -1729,57 +1746,55 @@ mq.addEventListener?.('change',e=>{
 });
 
 
-// ===== V14.1 Voice Time Parser Fix =====
-parseVoice = function(txt){
-  const map={จันทร์:1,อังคาร:2,พุธ:3,'พฤหัส':4,'พฤ':4,ศุกร์:5,เสาร์:6,อาทิตย์:0};
-  const day=Object.keys(map).find(k=>txt.includes(k));
-
-  function getTime(t){
-    t=t.replace(/\s+/g,"");
-    let m=t.match(/(\d{1,2})[:.](\d{2})/);
-    if(m) return `${m[1].padStart(2,"0")}:${m[2]}`;
-
-    const words=[
-      ["สี่โมงครึ่ง","16:30"],["ห้าโมงครึ่ง","17:30"],["หกโมงครึ่ง","18:30"],
-      ["เจ็ดโมงครึ่ง","19:30"],["แปดโมงครึ่ง","20:30"],["เก้าโมงครึ่ง","09:30"],
-      ["เก้าโมง","09:00"],["สิบโมง","10:00"],["สิบเอ็ดโมง","11:00"],
-      ["เที่ยง","12:00"],["บ่ายโมง","13:00"],["บ่ายสอง","14:00"],
-      ["บ่ายสาม","15:00"],["บ่ายสี่","16:00"],["ห้าโมงเย็น","17:00"],
-      ["หกโมงเย็น","18:00"],["หนึ่งทุ่ม","19:00"],["สองทุ่ม","20:00"]
-    ];
-    for(const [k,v] of words){if(t.includes(k)) return v;}
-    return "16:30";
-  }
-
-  const time=getTime(txt);
-  const [h,m]=time.split(":").map(Number);
-  const end=`${String((h+1)%24).padStart(2,"0")}:${String(m).padStart(2,"0")}`;
-
-  const teacher=(txt.match(/ครู[^\s]+/)||[""])[0];
-  let subject="📚 วิชา";
-  const subs=["ภาษาไทย","อังกฤษ","คณิต","วิทย์","เปียโน","ว่ายน้ำ","คอม","Computer","Social"];
-  for(const s of subs){if(txt.includes(s)){subject=s;break;}}
-
-  const res=document.getElementById("voiceResult");
-  if(res) res.innerHTML=`<b>วัน:</b> ${day||"-"}<br><b>เวลา:</b> ${time} - ${end}<br><b>ครู:</b> ${teacher||"-"}<br><b>วิชา:</b> ${subject}`;
-
-  const st=document.getElementById("inputStartTime");
-  const et=document.getElementById("inputEndTime");
-  const loc=document.getElementById("inputLoc");
-  const sub=document.getElementById("inputSubject");
-  if(st) st.value=time;
-  if(et) et.value=end;
-  if(loc) loc.value=teacher;
-  if(sub) sub.value=subject;
-  document.querySelectorAll(".repeat-day").forEach(c=>c.checked=(day!==undefined && +c.value===map[day]));
-
-  if(typeof openModal==="function") openModal("classModal");
-
-  if("speechSynthesis" in window){
-    speechSynthesis.cancel();
-    speechSynthesis.speak(new SpeechSynthesisUtterance(`${subject} เวลา ${time} พร้อมบันทึกแล้ว`));
-  }
+// ===== V14 Voice Assistant =====
+let recog,listening=false;
+const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
+function toggleVoice(){document.getElementById('voiceSheet').classList.toggle('show')}
+if(SR){recog=new SR();recog.lang='th-TH';recog.interimResults=true;recog.continuous=false;
+recog.onstart=()=>{listening=true;voiceFab.classList.add('listening');voiceStatus.textContent='กำลังฟัง...';};
+recog.onend=()=>{listening=false;voiceFab.classList.remove('listening');voiceStatus.textContent='พร้อมใช้งาน';};
+recog.onresult=e=>{let t='';for(let i=e.resultIndex;i<e.results.length;i++)t+=e.results[i][0].transcript;voiceResult.textContent=t;
+if(e.results[e.results.length-1].isFinal) parseVoice(t);};}
+function startVoice(){if(recog)recog.start();else alert('เบราว์เซอร์นี้ไม่รองรับเสียง');}
+function stopVoice(){if(recog)recog.stop();}
+function parseVoice(txt){
+ const map={จันทร์:1,อังคาร:2,พุธ:3,'พฤหัส':4,'พฤ':4,ศุกร์:5,เสาร์:6,อาทิตย์:0};
+ let day=Object.keys(map).find(k=>txt.includes(k));
+ let hm=/([0-2]?\d)[:.](\d{2})/.exec(txt);let time='16:30';
+ if(hm) time=hm[1].padStart(2,'0')+':'+hm[2];
+ else if(txt.includes('หกโมงครึ่ง')) time='18:30';
+ else if(txt.includes('สี่โมงครึ่ง')) time='16:30';
+ else if(txt.includes('เก้าโมง')) time='09:00';
+ else if(txt.includes('บ่ายสาม')) time='15:00';
+ let teacher=(txt.match(/ครู\S+/)||[''])[0];
+ let subject='📚 วิชา';
+ ['ภาษาไทย','อังกฤษ','คณิต','วิทย์','เปียโน','ว่ายน้ำ','คอม','Computer','Social'].forEach(s=>{if(txt.includes(s))subject=s;});
+ voiceResult.innerHTML=`<b>วัน:</b> ${day||'-'}<br><b>เวลา:</b> ${time}<br><b>ครู:</b> ${teacher||'-'}<br><b>วิชา:</b> ${subject}`;
+ if(typeof applyPreset==='function'){
+   const endH=(parseInt(time.split(':')[0])+1).toString().padStart(2,'0')+':'+time.split(':')[1];
+   applyPreset(subject,`${time} - ${endH} น.`,teacher,1);
+   if(day!==undefined){document.querySelectorAll('.repeat-day').forEach(c=>c.checked=(+c.value===map[day]));}
+   document.getElementById('voiceSheet').classList.remove('show');
+   if(typeof openModal==='function') openModal('classModal');
+ }
+ if('speechSynthesis' in window){
+   speechSynthesis.cancel();
+   speechSynthesis.speak(new SpeechSynthesisUtterance(`${subject} เวลา ${time} พร้อมบันทึกแล้ว`));
+ }
 }
 </script>
+
+<button id="voiceFab" class="voice-fab" onclick="toggleVoice()">🎤</button>
+<div id="voiceSheet" class="voice-sheet">
+  <div style="text-align:center;font-weight:700;font-size:20px;color:#c2185b">🎤 AI Voice Assistant V14</div>
+  <div class="wave"><span></span><span></span><span></span><span></span><span></span></div>
+  <div id="voiceStatus" style="text-align:center;color:#666">กดเริ่มแล้วพูด เช่น “วันจันทร์ หกโมงครึ่ง ครูปาล์ม ภาษาไทย”</div>
+  <div id="voiceResult" style="margin-top:12px;padding:12px;border-radius:16px;background:#fff0f5;min-height:54px"></div>
+  <div style="display:flex;gap:10px;margin-top:16px">
+    <button onclick="startVoice()" style="flex:1;padding:14px;border:none;border-radius:16px;background:#e91e63;color:#fff;font-weight:700">เริ่มฟัง</button>
+    <button onclick="stopVoice()" style="flex:1;padding:14px;border:none;border-radius:16px;background:#eee;font-weight:700">หยุด</button>
+  </div>
+</div>
+
 </body>
 </html>
