@@ -828,9 +828,30 @@ body.dark .day-number.today{
   backdrop-filter:blur(18px);
 }
 
+
+/* ===== V13 Elastic Pull to Refresh (iPhone PWA) ===== */
+html,body{overscroll-behavior:none;}
+#ptrIndicator{
+ position:fixed;top:calc(env(safe-area-inset-top) + 10px);left:50%;
+ transform:translate(-50%,-80px);
+ width:54px;height:54px;border-radius:27px;
+ background:rgba(255,255,255,.18);
+ backdrop-filter:blur(20px) saturate(180%);
+ border:1px solid rgba(255,255,255,.25);
+ display:flex;align-items:center;justify-content:center;
+ box-shadow:0 12px 28px rgba(0,0,0,.18);
+ z-index:9999;transition:transform .18s ease;
+}
+#ptrIndicator i{color:#fff;font-size:22px;}
+#ptrIndicator.spin i{animation:ptrSpin .7s linear infinite;}
+@keyframes ptrSpin{to{transform:rotate(360deg)}}
+#appWrap{transition:transform .18s cubic-bezier(.2,.9,.3,1.3);}
+
 </style>
 </head>
 <body>
+<div id='ptrIndicator'><i class='fa-solid fa-arrow-rotate-right'></i></div>
+<div id='appWrap'>
 
   <!-- Header Card -->
   <div class="header-card">
@@ -1729,34 +1750,42 @@ mq.addEventListener?.('change',e=>{
 });
 
 
-// ===== V12.3 Force Update (PWA จริง) =====
-if ('serviceWorker' in navigator) {
-  window.addEventListener('load', async () => {
-    const reg = await navigator.serviceWorker.register('./sw.js', {updateViaCache:'none'});
-    await reg.update();
-
-    function promptUpdate(worker){
-      if(!worker) return;
-      worker.postMessage({type:'SKIP_WAITING'});
-    }
-
-    if(reg.waiting) promptUpdate(reg.waiting);
-
-    reg.addEventListener('updatefound',()=>{
-      const nw=reg.installing;
-      if(!nw) return;
-      nw.addEventListener('statechange',()=>{
-        if(nw.state==='installed' && navigator.serviceWorker.controller){
-          promptUpdate(nw);
-        }
-      });
-    });
-
-    navigator.serviceWorker.addEventListener('controllerchange',()=>{
-      window.navigator.serviceWorker.getRegistration().then(r=>r&&r.update()).finally(()=>window.location.reload());
-    });
-  });
-}
+// ===== V13 Elastic Pull to Refresh =====
+(function(){
+ const ind=document.getElementById('ptrIndicator');
+ const wrap=document.getElementById('appWrap');
+ let sy=0,pull=false;
+ const topPos=()=> (document.scrollingElement||document.documentElement).scrollTop<=0;
+ window.addEventListener('touchstart',e=>{
+   if(topPos()){sy=e.touches[0].clientY;pull=true;}
+ },{passive:true});
+ window.addEventListener('touchmove',e=>{
+   if(!pull) return;
+   const d=e.touches[0].clientY-sy;
+   if(d<=0) return;
+   e.preventDefault();
+   const y=Math.min(d*0.55,70);
+   wrap.style.transform=`translateY(${y}px)`;
+   ind.style.transform=`translate(-50%,${Math.min(y-6,28)}px)`;
+   if(d>85) ind.classList.add('spin'); else ind.classList.remove('spin');
+ },{passive:false});
+ window.addEventListener('touchend',async e=>{
+   if(!pull) return;
+   const d=e.changedTouches[0].clientY-sy;
+   wrap.style.transform='translateY(0)';
+   ind.style.transform='translate(-50%,-80px)';
+   if(d>85){
+     if('serviceWorker' in navigator){
+       const reg=await navigator.serviceWorker.getRegistration();
+       if(reg) await reg.update();
+     }
+     setTimeout(()=>location.reload(),120);
+   }
+   ind.classList.remove('spin');
+   pull=false;
+ },{passive:true});
+})();
 </script>
+</div>
 </body>
 </html>
