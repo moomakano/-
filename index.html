@@ -845,6 +845,15 @@ transition:bottom .35s cubic-bezier(.2,.9,.3,1.2);box-shadow:0 -10px 30px rgba(0
 .wave span:nth-child(2){animation-delay:.1s}.wave span:nth-child(3){animation-delay:.2s}.wave span:nth-child(4){animation-delay:.3s}.wave span:nth-child(5){animation-delay:.4s}
 @keyframes wave{0%,100%{height:10px}50%{height:34px}}
 
+
+html,body{
+  overscroll-behavior-y:auto;
+}
+body{
+  overflow-y:auto;
+  -webkit-overflow-scrolling:touch;
+}
+
 </style>
 </head>
 <body>
@@ -1772,51 +1781,35 @@ function parseVoice(txt){
  voiceResult.innerHTML=`<b>วัน:</b> ${day||'-'}<br><b>เวลา:</b> ${time}<br><b>ครู:</b> ${teacher||'-'}<br><b>วิชา:</b> ${subject}`;
  if(typeof applyPreset==='function'){
    const endH=(parseInt(time.split(':')[0])+1).toString().padStart(2,'0')+':'+time.split(':')[1];
-     applyPreset(subject,`${time} - ${endH} น.`,teacher,1);
-  if(day!==undefined){document.querySelectorAll('.repeat-day').forEach(c=>c.checked=(+c.value===map[day]));}
-
-  // ===== V14.3 Instant Open =====
-  document.getElementById('voiceSheet').classList.remove('show');
-
-  setTimeout(()=>{
-    if(typeof openModal==='function'){
-      openModal('classModal');
-
-      // โฟกัสปุ่มบันทึก
-      requestAnimationFrame(()=>{
-        const btn=document.querySelector('#classModal .btn-submit');
-        btn?.focus();
-      });
-
-      // สั่นเบา ๆ
-      navigator.vibrate?.(30);
-
-      // เสียงติ๊ง
-      try{
-        const ctx=new(window.AudioContext||window.webkitAudioContext)();
-        const osc=ctx.createOscillator();
-        const gain=ctx.createGain();
-        osc.type='triangle';
-        osc.frequency.value=900;
-        osc.connect(gain);
-        gain.connect(ctx.destination);
-        gain.gain.setValueAtTime(.12,ctx.currentTime);
-        gain.gain.exponentialRampToValueAtTime(.001,ctx.currentTime+.18);
-        osc.start();
-        osc.stop(ctx.currentTime+.18);
-      }catch(e){}
-
-      if(typeof showToast==='function'){
-        showToast('✨ เติมข้อมูลเรียบร้อยแล้ว');
-      }
-    }
-  },120);
+   applyPreset(subject,`${time} - ${endH} น.`,teacher,1);
+   if(day!==undefined){document.querySelectorAll('.repeat-day').forEach(c=>c.checked=(+c.value===map[day]));}
+   document.getElementById('voiceSheet').classList.remove('show');
+   if(typeof openModal==='function') openModal('classModal');
  }
  if('speechSynthesis' in window){
    speechSynthesis.cancel();
    speechSynthesis.speak(new SpeechSynthesisUtterance(`${subject} เวลา ${time} พร้อมบันทึกแล้ว`));
  }
 }
+
+document.addEventListener('DOMContentLoaded',()=>{
+  const start=document.getElementById('inputStartTime');
+  const end=document.getElementById('inputEndTime');
+  if(start && end){
+    const updateEnd=()=>{
+      if(!start.value){ end.value=''; return; }
+      const [h,m]=start.value.split(':').map(Number);
+      const d=new Date();
+      d.setHours(h,m,0,0);
+      d.setMinutes(d.getMinutes()+60);
+      end.value=String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0');
+    };
+    start.addEventListener('input',updateEnd);
+    start.addEventListener('change',updateEnd);
+    updateEnd();
+  }
+});
+
 </script>
 
 <button id="voiceFab" class="voice-fab" onclick="toggleVoice()">🎤</button>
