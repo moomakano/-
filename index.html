@@ -2218,17 +2218,15 @@ body.voice-modal-open #voiceFab, body.voice-modal-open #voicePanel{display:none!
     return r;
   }
 
-  // V4: อย่า abort/stop recognition เก่าภายใน click เดียวกับการ start รอบใหม่
-  // Safari/iOS บางรุ่นจะค้างถ้าสั่ง abort() แล้ว start() ทันทีใน gesture เดียวกัน
+  // iPhone/Safari บางรุ่นต้องปล่อย recognition ตัวเก่าก่อนเริ่มรอบใหม่
   let restartGuard=0;
-  function detachOldRecognition(){
+  function resetRecognitionObject(){
     const old=rec;
     rec=null;
     listening=false;
     if(old){
-      try{ old.onresult=null; old.onerror=null; old.onend=null; }catch(e){}
-      // ปล่อย browser จัดการ lifecycle เดิมเอง ไม่ abort ในจังหวะเริ่มรอบใหม่
-      try{ old.stop(); }catch(e){}
+      try{ old.onresult=null; old.onerror=null; old.onend=null; old.stop(); }catch(e){}
+      try{ old.abort(); }catch(e){}
     }
   }
 
@@ -2236,9 +2234,9 @@ body.voice-modal-open #voiceFab, body.voice-modal-open #voicePanel{display:none!
     if(listening || processing) return;
     clearVoiceTimers();
 
+    // สำคัญมากสำหรับการใช้ซ้ำหลังบันทึกวิชา: เคลียร์ session เก่าทุกครั้ง
     restartGuard++;
-    // เคลียร์เฉพาะ reference/handlers แต่ไม่ abort ใน gesture เดียวกับ start
-    detachOldRecognition();
+    resetRecognitionObject();
     sessionId++;
     const mySession=sessionId;
     finalText='';
@@ -2250,23 +2248,17 @@ body.voice-modal-open #voiceFab, body.voice-modal-open #voicePanel{display:none!
     setState('listen','กำลังเปิดไมค์…');
     show('กำลังเปิดไมค์… พูดได้เลย',false);
 
+    // start() ต้องเกิดจาก click เดียวกันโดยตรง
     try{
       const newRec=makeRecognition(mySession);
       rec=newRec;
       newRec.start();
     }catch(e){
-      // ถ้า Safari มอง object แรกว่ายังค้าง ให้สร้าง object ใหม่อีกครั้งทันที
-      try{
-        const retry=makeRecognition(mySession);
-        rec=retry;
-        retry.start();
-      }catch(e2){
-        rec=null;
-        listening=false;
-        console.warn('Voice start failed:',e,e2);
-        setState('idle','ไมค์ยังไม่พร้อม');
-        show('ไมค์ยังไม่พร้อม — แตะไมค์อีกครั้งแล้วพูดได้เลย',false);
-      }
+      rec=null;
+      listening=false;
+      console.warn('Voice start failed:',e);
+      setState('idle','ไมค์ยังไม่พร้อม');
+      show('ไมค์ยังไม่พร้อม — แตะไมค์อีกครั้งแล้วพูดได้เลย',false);
     }
   }
 
@@ -2362,13 +2354,11 @@ body.voice-modal-open #voiceFab, body.voice-modal-open #voicePanel{display:none!
     clearVoiceTimers();
     processing=false;
     listening=false;
-    // หลังบันทึกวิชาให้ตัด session เดิมทันที แต่ไม่ abort object จาก click เดิม
-    const old=rec;
-    rec=null;
-    sessionId++;
-    if(old){
-      try{ old.onresult=null; old.onerror=null; old.onend=null; old.stop(); }catch(e){}
+    if(rec){
+      try{ rec.abort(); }catch(e){}
+      rec=null;
     }
+    sessionId++;
     finalText='';
     interimText='';
     gotFinal=false;
