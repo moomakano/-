@@ -832,7 +832,7 @@ body.dark .day-number.today{
 /* ===== V13 Elastic Pull to Refresh (iPhone PWA) ===== */
 html,body{overscroll-behavior:none;}
 #ptrIndicator{
- position:fixed;top:calc(env(safe-area-inset-top) + 10px);left:50%;
+ position:fixed;top:calc(env(safe-area-inset-top) + 6px);left:50%;
  transform:translate(-50%,-80px);
  width:54px;height:54px;border-radius:27px;
  background:rgba(255,255,255,.18);
@@ -840,7 +840,7 @@ html,body{overscroll-behavior:none;}
  border:1px solid rgba(255,255,255,.25);
  display:flex;align-items:center;justify-content:center;
  box-shadow:0 12px 28px rgba(0,0,0,.18);
- z-index:9999;transition:transform .18s ease;
+ z-index:9999;transition:transform .22s cubic-bezier(.22,.8,.28,1),opacity .18s ease;opacity:0;visibility:hidden;pointer-events:none;
 }
 #ptrIndicator i{color:#fff;font-size:22px;}
 #ptrIndicator.spin i{animation:ptrSpin .7s linear infinite;}
@@ -1750,40 +1750,115 @@ mq.addEventListener?.('change',e=>{
 });
 
 
-// ===== V13 Elastic Pull to Refresh =====
+// ===== V14 Smooth Pull to Refresh — PWA/iPhone =====
 (function(){
- const ind=document.getElementById('ptrIndicator');
- const wrap=document.getElementById('appWrap');
- let sy=0,pull=false;
- const topPos=()=> (document.scrollingElement||document.documentElement).scrollTop<=0;
- window.addEventListener('touchstart',e=>{
-   if(topPos()){sy=e.touches[0].clientY;pull=true;}
- },{passive:true});
- window.addEventListener('touchmove',e=>{
-   if(!pull) return;
-   const d=e.touches[0].clientY-sy;
-   if(d<=0) return;
-   e.preventDefault();
-   const y=Math.min(d*0.55,70);
-   wrap.style.transform=`translateY(${y}px)`;
-   ind.style.transform=`translate(-50%,${Math.min(y-6,28)}px)`;
-   if(d>85) ind.classList.add('spin'); else ind.classList.remove('spin');
- },{passive:false});
- window.addEventListener('touchend',async e=>{
-   if(!pull) return;
-   const d=e.changedTouches[0].clientY-sy;
-   wrap.style.transform='translateY(0)';
-   ind.style.transform='translate(-50%,-80px)';
-   if(d>85){
-     if('serviceWorker' in navigator){
-       const reg=await navigator.serviceWorker.getRegistration();
-       if(reg) await reg.update();
-     }
-     setTimeout(()=>location.reload(),120);
-   }
-   ind.classList.remove('spin');
-   pull=false;
- },{passive:true});
+  const ind=document.getElementById('ptrIndicator');
+  const wrap=document.getElementById('appWrap');
+  if(!ind || !wrap) return;
+
+  let startY=0, currentY=0, pulling=false, refreshing=false;
+  const THRESHOLD=82, MAX_PULL=105;
+
+  function atTop(){
+    return Math.max(
+      window.scrollY || 0,
+      document.documentElement.scrollTop || 0,
+      document.body.scrollTop || 0
+    ) <= 1;
+  }
+
+  function interactiveTarget(el){
+    return !!el.closest('input,textarea,select,button,a,[contenteditable="true"],.modal-content,#voicePanel');
+  }
+
+  function hideIndicator(){
+    ind.classList.remove('spin');
+    ind.style.opacity='0';
+    ind.style.visibility='hidden';
+  }
+
+  function reset(animated=true){
+    wrap.style.transition=animated ? 'transform .28s cubic-bezier(.22,.8,.28,1)' : 'none';
+    wrap.style.transform='translate3d(0,0,0)';
+    ind.style.transition=animated ? 'transform .28s cubic-bezier(.22,.8,.28,1)' : 'none';
+    ind.style.transform='translate3d(-50%,-80px,0)';
+    hideIndicator();
+  }
+
+  window.addEventListener('touchstart',function(e){
+    if(refreshing || !e.touches.length) return;
+    if(!atTop() || interactiveTarget(e.target)) return;
+    startY=e.touches[0].clientY;
+    currentY=startY;
+    pulling=true;
+    ind.style.visibility='visible';
+    wrap.style.transition='none';
+    ind.style.transition='none';
+  },{passive:true});
+
+  window.addEventListener('touchmove',function(e){
+    if(!pulling || refreshing || !e.touches.length) return;
+    currentY=e.touches[0].clientY;
+    const distance=currentY-startY;
+    if(distance<=0){ reset(false); return; }
+
+    // Soft rubber-band resistance
+    const pull=Math.min(MAX_PULL, Math.pow(distance,0.82)*1.05);
+    const progress=Math.min(pull/THRESHOLD,1);
+    const y=Math.min(pull,MAX_PULL);
+
+    e.preventDefault();
+    wrap.style.transform=`translate3d(0,${y}px,0)`;
+    ind.style.transform=`translate3d(-50%,${Math.min(-80+y*0.9,24)}px,0)`;
+    ind.style.opacity=String(Math.min(progress*1.15,1));
+    ind.style.visibility='visible';
+
+    if(distance>=THRESHOLD){
+      ind.classList.add('spin');
+      ind.innerHTML='<i class="fa-solid fa-arrow-rotate-right"></i>';
+    }else{
+      ind.classList.remove('spin');
+      ind.innerHTML='<i class="fa-solid fa-arrow-down"></i>';
+    }
+  },{passive:false});
+
+  window.addEventListener('touchend',async function(){
+    if(!pulling || refreshing) return;
+    const distance=currentY-startY;
+    pulling=false;
+
+    if(distance>=THRESHOLD){
+      refreshing=true;
+      ind.classList.add('spin');
+      ind.innerHTML='<i class="fa-solid fa-arrow-rotate-right"></i>';
+      wrap.style.transition='transform .22s ease';
+      wrap.style.transform='translate3d(0,38px,0)';
+
+      try{
+        if('serviceWorker' in navigator){
+          const reg=await navigator.serviceWorker.getRegistration();
+          if(reg) await reg.update().catch(()=>{});
+        }
+      }catch(e){}
+
+      ind.style.opacity='0';
+      ind.style.visibility='hidden';
+      wrap.style.transform='translate3d(0,0,0)';
+      setTimeout(()=>location.reload(),180);
+    }else{
+      reset(true);
+      setTimeout(()=>{ind.style.opacity='0';},180);
+    }
+  },{passive:true});
+
+  window.addEventListener('touchcancel',function(){
+    if(!pulling || refreshing) return;
+    pulling=false;
+    reset(true);
+    setTimeout(()=>{ind.style.opacity='0';},180);
+  },{passive:true});
+
+  hideIndicator();
 })();
 </script>
 </div>
