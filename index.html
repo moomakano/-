@@ -656,7 +656,7 @@
       height: 100%;
       background: rgba(0,0,0,0.5);
       backdrop-filter: blur(4px);
-      z-index: 1000;
+      z-index: 1000000;
       align-items: center;
       justify-content: center;
       padding: 20px;
@@ -1645,6 +1645,7 @@ function removeClass(id) {
 
     function closeModal(id) {
       document.getElementById(id).classList.remove('active');
+      document.body.classList.remove('voice-modal-open');
       if (id === 'studentModal') {
         document.getElementById('editStudentId').value = '';
       }
@@ -1884,6 +1885,10 @@ mq.addEventListener?.('change',e=>{
 #voicePanel.show{opacity:1;transform:translate(-50%,0) scale(1);pointer-events:auto}
 .voice-head{display:flex;align-items:center;gap:10px}.voice-orb{width:38px;height:38px;border-radius:50%;background:#fff0f5;color:#e91e63;display:flex;align-items:center;justify-content:center;font-size:18px}.voice-status{font-weight:600;color:#ad1457;font-size:.95rem}.voice-hint{font-size:.76rem;color:#888;margin-top:1px}.voice-text{margin-top:10px;background:#fff7fa;border-radius:14px;padding:10px 12px;color:#37474f;min-height:40px;font-size:.88rem;line-height:1.45}.voice-text.empty{color:#aaa}.voice-close{margin-left:auto;border:0;background:#f3f3f3;width:30px;height:30px;border-radius:50%;color:#777}.voice-actions{display:flex;gap:8px;margin-top:9px}.voice-actions button{flex:1;border:0;border-radius:12px;padding:8px;font-family:inherit;font-weight:600}.voice-stop{background:#ffebee;color:#d32f2f}.voice-clear{background:#f5f5f5;color:#666}
 body.dark #voicePanel{background:rgba(24,28,36,.94);border-color:rgba(255,255,255,.1)}body.dark .voice-text{background:#242833;color:#f3f4f6}body.dark .voice-hint{color:#9ca3af}body.dark .voice-close,.dark .voice-close{background:#30343d;color:#ddd}
+/* Voice UI must never cover modal action buttons */
+body.voice-modal-open #voiceFab, body.voice-modal-open #voicePanel{display:none!important;pointer-events:none!important;}
+.modal.active{z-index:1000000!important;}
+
 </style>
 
 <button id="voiceFab" aria-label="สั่งงานด้วยเสียง" title="สั่งงานด้วยเสียง"><i class="fa-solid fa-microphone"></i></button>
@@ -1928,7 +1933,7 @@ body.dark #voicePanel{background:rgba(24,28,36,.94);border-color:rgba(255,255,25
    const subj=subjectMatch?subjectMatch[0]:''; const teacher=teacherMatch?teacherMatch[0].replace(/\s+/g,' '):'';
    set('inputSubject',subj); set('inputStartTime',start); set('inputEndTime',end); set('inputLoc',teacher);
    if(dayKey!==undefined)document.querySelectorAll('.repeat-day').forEach(c=>c.checked=(+c.value===dayMap[dayKey]));
-   const modal=document.getElementById('classModal'); if(modal){modal.classList.add('active');modal.style.display='flex'}
+   const modal=document.getElementById('classModal'); if(modal){ panel.classList.remove('show'); document.body.classList.add('voice-modal-open'); modal.classList.add('active'); modal.style.display='flex'; modal.style.zIndex='1000000'; }
    show(`ได้ยิน: “${txt}”\n${subj?'📚 '+subj+'  ':''}${teacher?'👨‍🏫 '+teacher+'  ':''}⏰ ${start} - ${end}`);
    status.textContent='ตรวจข้อมูลแล้ว กด “บันทึกวิชา” ได้เลย';
  }
