@@ -1434,22 +1434,41 @@ html,body{overscroll-behavior:none;}
     
 function addClass(){
  const title=document.getElementById('inputSubject').value.trim();
- const start=document.getElementById('inputStartTime').value;
- const end=document.getElementById('inputEndTime').value;
+ const startTime=document.getElementById('inputStartTime').value;
+ let endTime=document.getElementById('inputEndTime').value;
  const loc=document.getElementById('inputLoc').value.trim();
  const reward=parseInt(document.getElementById('inputStars').value)||1;
- if(!title||!start){showToast('⚠️ กรุณาเลือกเวลาเริ่ม');return;}
- const st=getCurrentStudent(); if(!st.classes) st.classes=[];
+ if(!title){showToast('⚠️ กรุณาเลือกวิชา');return false;}
+ if(!startTime){showToast('⚠️ กรุณาเลือกเวลาเริ่ม');return false;}
+ // ถ้ามีเวลาเริ่ม แต่เวลาเลิกว่าง ให้คำนวณ +1 ชั่วโมงให้ทันที
+ if(!endTime){
+   const p=startTime.split(':').map(Number);
+   const d=new Date(2000,0,1,p[0]||0,(p[1]||0)+60);
+   endTime=`${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;
+ }
+ const st=getCurrentStudent();
+ if(!st.classes) st.classes=[];
  const repeat=[...document.querySelectorAll('.repeat-day:checked')].map(x=>+x.value);
- const make=d=>st.classes.push({id:Date.now()+Math.random(),dateStr:formatDateKey(d),title,time:`${start} - ${end} น.`,loc:loc||'📍 ห้องเรียน',reward,done:false});
- if(repeat.length){const base=new Date(selectedDate);for(let i=0;i<365;i++){const d=new Date(base);d.setDate(base.getDate()+i);if(repeat.includes(d.getDay()))make(d);}}
- else make(new Date(selectedDate));
- saveAppData();renderCalendar();renderSchedule();
+ const make=d=>st.classes.push({id:Date.now()+Math.random(),dateStr:formatDateKey(d),title,time:`${startTime} - ${endTime} น.`,loc:loc||'📍 ห้องเรียน',reward,done:false});
+ if(repeat.length){
+   const base=new Date(selectedDate);
+   for(let i=0;i<365;i++){
+     const d=new Date(base); d.setDate(base.getDate()+i);
+     if(repeat.includes(d.getDay())) make(d);
+   }
+ } else make(new Date(selectedDate));
+ saveAppData();
+ renderCalendar();
+ renderSchedule();
  closeModal('classModal');
  setTimeout(()=>showToast('✨ เพิ่มตารางเรียนแล้ว'),80);
- document.getElementById('inputSubject').value='';document.getElementById('inputStartTime').value='';document.getElementById('inputEndTime').value='';document.getElementById('inputLoc').value='';document.querySelectorAll('.repeat-day').forEach(c=>c.checked=false);
+ document.getElementById('inputSubject').value='';
+ document.getElementById('inputStartTime').value='';
+ document.getElementById('inputEndTime').value='';
+ document.getElementById('inputLoc').value='';
+ document.querySelectorAll('.repeat-day').forEach(c=>c.checked=false);
+ return true;
 }
-
 
     
 function removeClass(id) {
@@ -1935,12 +1954,7 @@ body.voice-modal-open #voiceFab, body.voice-modal-open #voicePanel{display:none!
     return;
   }
 
-  const rec=new SR();
-  rec.lang='th-TH';
-  rec.interimResults=true;
-  rec.continuous=false;
-  rec.maxAlternatives=1;
-
+  let rec=null;
   let listening=false;
   let processing=false;
   let finalText='';
@@ -2016,15 +2030,39 @@ body.voice-modal-open #voiceFab, body.voice-modal-open #voicePanel{display:none!
     return true;
   }
 
+  function makeRecognition(){
+    const r=new SR();
+    r.lang='th-TH';
+    r.interimResults=true;
+    r.continuous=false;
+    r.maxAlternatives=1;
+    r.onstart=()=>{
+      listening=true;
+      setState('listen','กำลังฟัง…');
+    };
+    r.onresult=onResult;
+    r.onerror=onError;
+    r.onend=onEnd;
+    return r;
+  }
+
   function startListening(){
     if(listening) return;
-    finalText=''; interimText=''; processing=false;
+    finalText='';
+    interimText='';
+    processing=false;
     panel.classList.add('show');
     show('กำลังฟัง… พูดชื่อวิชา วัน เวลา และครูได้เลย',false);
     setState('listen','กำลังฟัง…');
     listening=true;
+    rec=makeRecognition();
     try{ rec.start(); }
-    catch(e){ listening=false; setState('idle','พร้อมรับคำสั่ง'); show('ลองกดไมค์อีกครั้ง',false); }
+    catch(e){
+      listening=false;
+      rec=null;
+      setState('idle','พร้อมรับคำสั่ง');
+      show('ลองกดไมค์อีกครั้ง',false);
+    }
   }
 
   function finishRecognition(){
@@ -2045,12 +2083,12 @@ body.voice-modal-open #voiceFab, body.voice-modal-open #voicePanel{display:none!
   }
 
   fab.onclick=()=>{
-    if(listening){ try{rec.stop();}catch(e){} return; }
+    if(listening && rec){ try{rec.stop();}catch(e){} return; }
     startListening();
   };
 
   document.getElementById('voiceStop').onclick=()=>{
-    if(listening){ try{rec.stop();}catch(e){} }
+    if(listening && rec){ try{rec.stop();}catch(e){} }
     else closePanel();
   };
   document.getElementById('voiceClear').onclick=()=>{
@@ -2060,16 +2098,11 @@ body.voice-modal-open #voiceFab, body.voice-modal-open #voicePanel{display:none!
     setState('idle','พร้อมรับคำสั่ง');
   };
   document.getElementById('voiceClose').onclick=()=>{
-    if(listening){try{rec.stop();}catch(e){}}
+    if(listening && rec){try{rec.stop();}catch(e){}}
     closePanel();
   };
 
-  rec.onstart=()=>{
-    listening=true;
-    setState('listen','กำลังฟัง…');
-  };
-
-  rec.onresult=e=>{
+  function onResult(e){
     interimText='';
     for(let i=e.resultIndex;i<e.results.length;i++){
       const t=(e.results[i][0].transcript||'').trim();
@@ -2078,10 +2111,10 @@ body.voice-modal-open #voiceFab, body.voice-modal-open #voicePanel{display:none!
     }
     const live=(finalText||interimText).trim();
     if(live) show(live,false);
-  };
+  }
 
-  rec.onerror=e=>{
-    // iOS บางรุ่นส่ง aborted หลังได้ผลแล้ว — อย่าล้างข้อความและให้ onend จัดการต่อ
+  function onError(e){
+    // iOS บางรุ่นส่ง aborted ก่อน onend แม้จะมีข้อความแล้ว ให้ onend ประมวลผลต่อ
     if(e.error==='aborted' && (finalText||interimText)) return;
     listening=false;
     if(e.error==='not-allowed'){
@@ -2094,11 +2127,14 @@ body.voice-modal-open #voiceFab, body.voice-modal-open #voicePanel{display:none!
       setState('idle','พร้อมรับคำสั่ง');
       if(!finalText&&!interimText) show('ลองกดไมค์แล้วพูดใหม่',false);
     }
-  };
+  }
 
-  rec.onend=()=>{
+  function onEnd(){
+    listening=false;
+    rec=null;
     if(!processing) finishRecognition();
-  };
+  }
+
 })();
 </script>
 </body>
