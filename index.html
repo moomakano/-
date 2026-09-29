@@ -832,15 +832,9 @@ body.dark .day-number.today{
 /* ===== V13 Elastic Pull to Refresh (iPhone PWA) ===== */
 html,body{overscroll-behavior:none;}
 #ptrIndicator{
- position:fixed;top:calc(env(safe-area-inset-top) + 6px);left:50%;
- transform:translate(-50%,-80px);
- width:54px;height:54px;border-radius:27px;
- background:rgba(255,255,255,.18);
- backdrop-filter:blur(20px) saturate(180%);
- border:1px solid rgba(255,255,255,.25);
- display:flex;align-items:center;justify-content:center;
- box-shadow:0 12px 28px rgba(0,0,0,.18);
- z-index:9999;transition:transform .22s cubic-bezier(.22,.8,.28,1),opacity .18s ease;opacity:0;visibility:hidden;pointer-events:none;
+ position:fixed;top:0;left:0;width:1px;height:1px;
+ opacity:0 !important;visibility:hidden !important;display:none !important;
+ pointer-events:none !important;
 }
 #ptrIndicator i{color:#fff;font-size:22px;}
 #ptrIndicator.spin i{animation:ptrSpin .7s linear infinite;}
@@ -1266,8 +1260,11 @@ html,body{overscroll-behavior:none;}
     }
 
     function applyPreset(subject, time, loc, stars) {
+      // เลือกวิชาแล้วจะไม่ใส่เวลาให้อัตโนมัติ
+      // ให้ผู้ใช้เลือกเวลาเริ่มเองทุกครั้ง
       document.getElementById('inputSubject').value = subject;
-      const p=time.replace(' น.','').split(' - ');document.getElementById('inputStartTime').value=(p[0]||'').trim();document.getElementById('inputEndTime').value=(p[1]||'').trim();
+      document.getElementById('inputStartTime').value = '';
+      document.getElementById('inputEndTime').value = '';
       document.getElementById('inputLoc').value = loc;
       document.getElementById('inputStars').value = stars;
     }
@@ -1791,7 +1788,7 @@ mq.addEventListener?.('change',e=>{
     startY=e.touches[0].clientY;
     currentY=startY;
     pulling=true;
-    ind.style.visibility='visible';
+    ind.style.visibility='hidden';
     wrap.style.transition='none';
     ind.style.transition='none';
   },{passive:true});
@@ -1809,16 +1806,16 @@ mq.addEventListener?.('change',e=>{
 
     e.preventDefault();
     wrap.style.transform=`translate3d(0,${y}px,0)`;
-    ind.style.transform=`translate3d(-50%,${Math.min(-80+y*0.9,24)}px,0)`;
-    ind.style.opacity=String(Math.min(progress*1.15,1));
-    ind.style.visibility='visible';
+    ind.style.transform='translate3d(-50%,-80px,0)';
+    ind.style.opacity='0';
+    ind.style.visibility='hidden';
 
     if(distance>=THRESHOLD){
       ind.classList.add('spin');
-      ind.innerHTML='<i class="fa-solid fa-arrow-rotate-right"></i>';
+      ind.innerHTML='';
     }else{
       ind.classList.remove('spin');
-      ind.innerHTML='<i class="fa-solid fa-arrow-down"></i>';
+      ind.innerHTML='';
     }
   },{passive:false});
 
@@ -1830,7 +1827,7 @@ mq.addEventListener?.('change',e=>{
     if(distance>=THRESHOLD){
       refreshing=true;
       ind.classList.add('spin');
-      ind.innerHTML='<i class="fa-solid fa-arrow-rotate-right"></i>';
+      ind.innerHTML='';
       wrap.style.transition='transform .22s ease';
       wrap.style.transform='translate3d(0,38px,0)';
 
