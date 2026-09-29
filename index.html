@@ -2222,7 +2222,8 @@ body.voice-modal-open #voiceFab, body.voice-modal-open #voicePanel{display:none!
     setState('listen','กำลังเริ่มไมค์…');
     show('กำลังเปิดไมโครโฟน…',false);
 
-    // สร้าง recognition ใหม่ทุกครั้งที่กด เพื่อแก้ iOS session ค้าง
+    // สำคัญบน iPhone/Safari: start() ต้องเกิดใกล้กับการแตะปุ่ม
+    // จึงไม่ใช้ setTimeout ก่อน rec.start() เพราะอาจทำให้ระบบมองว่าไม่ได้เกิดจาก user gesture
     try{
       rec=makeRecognition();
       rec.start();
@@ -2230,7 +2231,7 @@ body.voice-modal-open #voiceFab, body.voice-modal-open #voicePanel{display:none!
       rec=null;
       listening=false;
       setState('idle','พร้อมรับคำสั่ง');
-      show('เปิดไมโครโฟนไม่สำเร็จ ลองกดอีกครั้ง',false);
+      show('เปิดไมโครโฟนไม่สำเร็จ ลองกดไมค์อีกครั้ง',false);
     }
   }
 
@@ -2366,7 +2367,7 @@ body.voice-modal-open #voiceFab, body.voice-modal-open #voicePanel{display:none!
     endTimer=setTimeout(()=>{
       endTimer=null;
       if(!processing) finishRecognition();
-    }, gotFinal ? 40 : 180);
+    }, gotFinal ? 180 : 700);
   }
 
 })();
