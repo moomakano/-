@@ -1912,48 +1912,193 @@ body.voice-modal-open #voiceFab, body.voice-modal-open #voicePanel{display:none!
 </div>
 <script>
 (function(){
- const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
- const fab=document.getElementById('voiceFab'), panel=document.getElementById('voicePanel'), status=document.getElementById('voiceStatus'), textBox=document.getElementById('voiceText');
- const close=()=>panel.classList.remove('show');
- const show=(msg,empty=false)=>{textBox.textContent=msg;textBox.classList.toggle('empty',empty)};
- if(!SR){fab.onclick=()=>{panel.classList.add('show');status.textContent='เบราว์เซอร์ไม่รองรับ';show('ลองเปิดด้วย Chrome หรือ Safari ที่อนุญาตการใช้ไมโครโฟน',false)};return;}
- const rec=new SR(); rec.lang='th-TH'; rec.interimResults=true; rec.continuous=false; rec.maxAlternatives=3;
- let listening=false;
- function setState(state,msg){
-   status.textContent=msg;
-   fab.classList.toggle('listening',state==='listen'); fab.classList.toggle('processing',state==='process');
-   fab.innerHTML=state==='listen'?'<i class="fa-solid fa-waveform-lines"></i>':state==='process'?'<i class="fa-solid fa-spinner fa-spin"></i>':'<i class="fa-solid fa-microphone"></i>';
- }
- function parseAndFill(txt){
-   const dayMap={จันทร์:1,อังคาร:2,พุธ:3,'พฤหัสบดี':4,'พฤหัส':4,'พฤ':4,ศุกร์:5,เสาร์:6,อาทิตย์:0};
-   const dayKey=Object.keys(dayMap).find(k=>txt.includes(k));
-   const subjectMatch=txt.match(/(ภาษาไทย|ภาษาอังกฤษ|อังกฤษ|คณิตศาสตร์|คณิต|วิทยาศาสตร์|วิทย์|เปียโน|ว่ายน้ำ|สังคม|คอมพิวเตอร์)/);
-   const teacherMatch=txt.match(/ครู\s*[ก-๙A-Za-z]+/);
-   let h,m;
-   const hm=txt.match(/(?:เวลา|ตอน)?\s*([01]?\d|2[0-3])\s*(?:[:.]\s*(\d{1,2}))?/);
-   if(hm){h=+hm[1];m=hm[2]!==undefined?+hm[2]:0;}
-   const words=[[/หกโมงสิบห้า/,18,15],[/หกโมงครึ่ง/,18,30],[/หกโมง/,18,0],[/ห้าโมงครึ่ง/,17,30],[/ห้าโมง/,17,0],[/สี่โมงครึ่ง|บ่ายสี่โมงครึ่ง/,16,30],[/สี่โมง/,16,0],[/สามโมงครึ่ง/,15,30],[/สามโมง/,15,0]];
-   if(h===undefined){for(const [re,hh,mm] of words){if(re.test(txt)){h=hh;m=mm;break}}}
-   if(h===undefined){h=16;m=30}
-   if(m>59)m=59;
-   const start=`${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}`;
-   const endDate=new Date(2000,0,1,h,m+60); const end=`${String(endDate.getHours()).padStart(2,'0')}:${String(endDate.getMinutes()).padStart(2,'0')}`;
-   const set=(id,v)=>{const el=document.getElementById(id);if(el)el.value=v};
-   const subj=subjectMatch?subjectMatch[0]:''; const teacher=teacherMatch?teacherMatch[0].replace(/\s+/g,' '):'';
-   set('inputSubject',subj); set('inputStartTime',start); set('inputEndTime',end); set('inputLoc',teacher);
-   if(dayKey!==undefined)document.querySelectorAll('.repeat-day').forEach(c=>c.checked=(+c.value===dayMap[dayKey]));
-   const modal=document.getElementById('classModal'); if(modal){ panel.classList.remove('show'); document.body.classList.add('voice-modal-open'); modal.classList.add('active'); modal.style.display='flex'; modal.style.zIndex='1000000'; }
-   show(`ได้ยิน: “${txt}”\n${subj?'📚 '+subj+'  ':''}${teacher?'👨‍🏫 '+teacher+'  ':''}⏰ ${start} - ${end}`);
-   status.textContent='ตรวจข้อมูลแล้ว กด “บันทึกวิชา” ได้เลย';
- }
- fab.onclick=()=>{panel.classList.add('show'); if(listening){rec.stop();return;} show('กำลังฟัง… พูดชื่อวิชา วัน เวลา และครูได้เลย',false);setState('listen','กำลังฟัง…');listening=true;try{rec.start()}catch(e){}};
- document.getElementById('voiceStop').onclick=()=>{if(listening)rec.stop();else close()};
- document.getElementById('voiceClear').onclick=()=>show('แตะไมค์แล้วพูดได้เลย…',true);
- document.getElementById('voiceClose').onclick=close;
- rec.onstart=()=>{listening=true;setState('listen','กำลังฟัง…')};
- rec.onresult=e=>{let final='',interim='';for(let i=e.resultIndex;i<e.results.length;i++){const t=e.results[i][0].transcript;if(e.results[i].isFinal)final+=t;else interim+=t}show(final||interim||'กำลังฟัง…',!(final||interim));if(final){setState('process','กำลังประมวลผล…');setTimeout(()=>parseAndFill(final.trim()),120)}};
- rec.onerror=e=>{listening=false;setState('idle','เกิดปัญหาในการฟัง');const msg=e.error==='not-allowed'?'กรุณาอนุญาตการใช้ไมโครโฟน':e.error==='no-speech'?'ไม่ได้ยินเสียง ลองพูดอีกครั้ง':'ลองกดไมค์แล้วพูดใหม่';show(msg,false)};
- rec.onend=()=>{listening=false;if(status.textContent==='กำลังฟัง…'){setState('idle','พร้อมรับคำสั่ง');show('ยังไม่ได้ยินคำสั่ง ลองใหม่อีกครั้ง',false)}else if(!status.textContent.includes('ตรวจข้อมูล'))setState('idle',status.textContent)};
+  const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
+  const fab=document.getElementById('voiceFab');
+  const panel=document.getElementById('voicePanel');
+  const status=document.getElementById('voiceStatus');
+  const textBox=document.getElementById('voiceText');
+  if(!fab||!panel||!status||!textBox) return;
+
+  const closePanel=()=>panel.classList.remove('show');
+  const show=(msg,empty=false)=>{
+    textBox.textContent=msg;
+    textBox.classList.toggle('empty',empty);
+  };
+  const set=(id,v)=>{const el=document.getElementById(id);if(el)el.value=v;};
+
+  if(!SR){
+    fab.onclick=()=>{
+      panel.classList.add('show');
+      status.textContent='เบราว์เซอร์ไม่รองรับ';
+      show('ลองเปิดด้วย Safari หรือ Chrome และอนุญาตไมโครโฟน',false);
+    };
+    return;
+  }
+
+  const rec=new SR();
+  rec.lang='th-TH';
+  rec.interimResults=true;
+  rec.continuous=false;
+  rec.maxAlternatives=1;
+
+  let listening=false;
+  let processing=false;
+  let finalText='';
+  let interimText='';
+
+  function setState(state,msg){
+    status.textContent=msg;
+    fab.classList.toggle('listening',state==='listen');
+    fab.classList.toggle('processing',state==='process');
+    fab.innerHTML=state==='listen'
+      ? '<i class="fa-solid fa-microphone"></i>'
+      : state==='process'
+      ? '<i class="fa-solid fa-spinner fa-spin"></i>'
+      : '<i class="fa-solid fa-microphone"></i>';
+  }
+
+  function parseAndFill(txt){
+    txt=(txt||'').trim();
+    if(!txt) return false;
+
+    const dayMap={จันทร์:1,อังคาร:2,พุธ:3,'พฤหัสบดี':4,'พฤหัส':4,'พฤ':4,ศุกร์:5,เสาร์:6,อาทิตย์:0};
+    const dayKey=Object.keys(dayMap).find(k=>txt.includes(k));
+    const subjectMatch=txt.match(/(ภาษาไทย|ภาษาอังกฤษ|อังกฤษ|คณิตศาสตร์|คณิต|วิทยาศาสตร์|วิทย์|เปียโน|ว่ายน้ำ|สังคม|คอมพิวเตอร์|ดนตรี|ศิลปะ)/);
+    const teacherMatch=txt.match(/(?:ครู|อาจารย์|อ\.)\s*[ก-๙A-Za-z]+/);
+
+    let h,m;
+    const hm=txt.match(/(?:เวลา|ตอน)?\s*([01]?\d|2[0-3])\s*(?:[:.]\s*(\d{1,2}))?/);
+    if(hm){ h=+hm[1]; m=hm[2]!==undefined ? +hm[2] : 0; }
+
+    const words=[
+      [/หกโมงสิบห้า/,18,15],[/หกโมงครึ่ง/,18,30],[/หกโมง/,18,0],
+      [/ห้าโมงครึ่ง/,17,30],[/ห้าโมง/,17,0],
+      [/สี่โมงครึ่ง|บ่ายสี่โมงครึ่ง/,16,30],[/สี่โมง/,16,0],
+      [/สามโมงครึ่ง/,15,30],[/สามโมง/,15,0]
+    ];
+    if(h===undefined){
+      for(const [re,hh,mm] of words){ if(re.test(txt)){h=hh;m=mm;break;} }
+    }
+
+    // ไม่เดาเวลา ถ้าผู้ใช้ไม่ได้พูดเวลา
+    const hasTime=h!==undefined;
+    const start=hasTime ? `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}` : '';
+    let end='';
+    if(hasTime){
+      const endDate=new Date(2000,0,1,h,m+60);
+      end=`${String(endDate.getHours()).padStart(2,'0')}:${String(endDate.getMinutes()).padStart(2,'0')}`;
+    }
+
+    const subj=subjectMatch?subjectMatch[0]:'';
+    const teacher=teacherMatch?teacherMatch[0].replace(/^(ครู|อาจารย์|อ\.)\s*/,'').trim():'';
+
+    // เปิดด้วยฟังก์ชันกลางของแอปก่อน แล้วค่อยเติมค่าที่จับได้
+    if(typeof openModal==='function') openModal('classModal');
+    set('inputSubject',subj);
+    set('inputStartTime',start);
+    set('inputEndTime',end);
+    set('inputLoc',teacher);
+    document.querySelectorAll('.repeat-day').forEach(c=>c.checked=dayKey!==undefined && +c.value===dayMap[dayKey]);
+
+    const modal=document.getElementById('classModal');
+    if(modal){
+      closePanel();
+      document.body.classList.add('voice-modal-open');
+      modal.classList.add('active');
+      modal.style.display='flex';
+      modal.style.zIndex='1000000';
+    }
+
+    const summary=[subj?'📚 '+subj:'',teacher?'👨‍🏫 '+teacher:'',start?'⏰ '+start+' - '+end:''].filter(Boolean).join('  ');
+    show(`ได้ยิน: “${txt}”${summary?'\n'+summary:''}`,false);
+    status.textContent='ตรวจข้อมูลแล้ว กด “บันทึกวิชา” ได้เลย';
+    setState('idle','ตรวจข้อมูลแล้ว');
+    return true;
+  }
+
+  function startListening(){
+    if(listening) return;
+    finalText=''; interimText=''; processing=false;
+    panel.classList.add('show');
+    show('กำลังฟัง… พูดชื่อวิชา วัน เวลา และครูได้เลย',false);
+    setState('listen','กำลังฟัง…');
+    listening=true;
+    try{ rec.start(); }
+    catch(e){ listening=false; setState('idle','พร้อมรับคำสั่ง'); show('ลองกดไมค์อีกครั้ง',false); }
+  }
+
+  function finishRecognition(){
+    listening=false;
+    const spoken=(finalText||interimText||'').trim();
+    if(!spoken){
+      processing=false;
+      setState('idle','พร้อมรับคำสั่ง');
+      show('ยังไม่ได้ยินข้อความ ลองกดไมค์แล้วพูดอีกครั้ง',false);
+      return;
+    }
+    if(processing) return;
+    processing=true;
+    setState('process','กำลังประมวลผล…');
+    show(spoken,false);
+    // ประมวลผลจากข้อความสุดท้ายเพียงครั้งเดียว ป้องกัน iOS onresult/onend แข่งกัน
+    requestAnimationFrame(()=>parseAndFill(spoken));
+  }
+
+  fab.onclick=()=>{
+    if(listening){ try{rec.stop();}catch(e){} return; }
+    startListening();
+  };
+
+  document.getElementById('voiceStop').onclick=()=>{
+    if(listening){ try{rec.stop();}catch(e){} }
+    else closePanel();
+  };
+  document.getElementById('voiceClear').onclick=()=>{
+    finalText='';interimText='';processing=false;
+    show('แตะไมค์แล้วพูดได้เลย…',true);
+    status.textContent='พร้อมรับคำสั่ง';
+    setState('idle','พร้อมรับคำสั่ง');
+  };
+  document.getElementById('voiceClose').onclick=()=>{
+    if(listening){try{rec.stop();}catch(e){}}
+    closePanel();
+  };
+
+  rec.onstart=()=>{
+    listening=true;
+    setState('listen','กำลังฟัง…');
+  };
+
+  rec.onresult=e=>{
+    interimText='';
+    for(let i=e.resultIndex;i<e.results.length;i++){
+      const t=(e.results[i][0].transcript||'').trim();
+      if(e.results[i].isFinal) finalText+=(finalText?' ':'')+t;
+      else interimText+=(interimText?' ':'')+t;
+    }
+    const live=(finalText||interimText).trim();
+    if(live) show(live,false);
+  };
+
+  rec.onerror=e=>{
+    // iOS บางรุ่นส่ง aborted หลังได้ผลแล้ว — อย่าล้างข้อความและให้ onend จัดการต่อ
+    if(e.error==='aborted' && (finalText||interimText)) return;
+    listening=false;
+    if(e.error==='not-allowed'){
+      setState('idle','ไม่สามารถใช้ไมโครโฟนได้');
+      show('กรุณาอนุญาตการใช้ไมโครโฟนในการตั้งค่า Safari',false);
+    }else if(e.error==='no-speech'){
+      setState('idle','ไม่ได้ยินเสียง');
+      show('ไม่ได้ยินเสียง ลองพูดอีกครั้ง',false);
+    }else{
+      setState('idle','พร้อมรับคำสั่ง');
+      if(!finalText&&!interimText) show('ลองกดไมค์แล้วพูดใหม่',false);
+    }
+  };
+
+  rec.onend=()=>{
+    if(!processing) finishRecognition();
+  };
 })();
 </script>
 </body>
