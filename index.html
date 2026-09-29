@@ -2038,6 +2038,15 @@ body.voice-modal-open #voiceFab, body.voice-modal-open #voicePanel{display:none!
         if(r) return r;
       }
 
+      // ตัวเลข + โมงครึ่ง เช่น 9 โมงครึ่ง / 9โมงครึ่ง / 09 โมงครึ่ง
+      m=t.match(/(?:เวลา|ตอน|ประมาณ|ช่วง)?\s*(\d{1,2})\s*โมง\s*ครึ่ง/);
+      if(m){
+        let hh=Number(m[1]);
+        if(/บ่าย|เย็น/.test(t) && hh<12) hh+=12;
+        const r=valid(hh,30);
+        if(r) return r;
+      }
+
       // 7โมง / 7โมงเช้า / 7โมง 15 / 7 โมง 15 นาที / 18 นาฬิกา
       m=t.match(/(?:เวลา|ตอน|ประมาณ|ช่วง)?\s*(\d{1,2})\s*โมง(?:\s*(\d{1,2})\s*(?:นาที)?)?/);
       if(m){
