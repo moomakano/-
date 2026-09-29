@@ -1750,40 +1750,113 @@ mq.addEventListener?.('change',e=>{
 });
 
 
-// ===== V13 Elastic Pull to Refresh =====
+// ===== V14 Smooth Pull to Refresh (PWA / iPhone) =====
 (function(){
- const ind=document.getElementById('ptrIndicator');
- const wrap=document.getElementById('appWrap');
- let sy=0,pull=false;
- const topPos=()=> (document.scrollingElement||document.documentElement).scrollTop<=0;
- window.addEventListener('touchstart',e=>{
-   if(topPos()){sy=e.touches[0].clientY;pull=true;}
- },{passive:true});
- window.addEventListener('touchmove',e=>{
-   if(!pull) return;
-   const d=e.touches[0].clientY-sy;
-   if(d<=0) return;
-   e.preventDefault();
-   const y=Math.min(d*0.55,70);
-   wrap.style.transform=`translateY(${y}px)`;
-   ind.style.transform=`translate(-50%,${Math.min(y-6,28)}px)`;
-   if(d>85) ind.classList.add('spin'); else ind.classList.remove('spin');
- },{passive:false});
- window.addEventListener('touchend',async e=>{
-   if(!pull) return;
-   const d=e.changedTouches[0].clientY-sy;
-   wrap.style.transform='translateY(0)';
-   ind.style.transform='translate(-50%,-80px)';
-   if(d>85){
-     if('serviceWorker' in navigator){
-       const reg=await navigator.serviceWorker.getRegistration();
-       if(reg) await reg.update();
-     }
-     setTimeout(()=>location.reload(),120);
-   }
-   ind.classList.remove('spin');
-   pull=false;
- },{passive:true});
+  const ind = document.getElementById('ptrIndicator');
+  const wrap = document.getElementById('appWrap');
+  if(!ind || !wrap) return;
+
+  let startY = 0;
+  let startX = 0;
+  let currentY = 0;
+  let tracking = false;
+  let refreshing = false;
+  let horizontal = false;
+  const THRESHOLD = 82;
+  const MAX_PULL = 92;
+
+  const scrollTop = () => {
+    const se = document.scrollingElement || document.documentElement;
+    return Math.max(0, se.scrollTop || window.scrollY || 0);
+  };
+
+  const reset = (animated=true) => {
+    wrap.style.transition = animated ? 'transform .38s cubic-bezier(.22,1,.36,1)' : 'none';
+    wrap.style.transform = 'translate3d(0,0,0)';
+    ind.style.transition = animated ? 'transform .38s cubic-bezier(.22,1,.36,1), opacity .2s ease' : 'none';
+    ind.style.transform = 'translate3d(-50%,-80px,0)';
+    ind.style.opacity = '0';
+    ind.classList.remove('spin');
+  };
+
+  const begin = (e) => {
+    if(refreshing || e.touches.length !== 1 || scrollTop() > 1) return;
+    // Do not hijack normal controls, inputs, modals, or horizontal calendar swipes.
+    const target = e.target;
+    if(target.closest('input,button,textarea,select,.modal,.calendar-swipe-area')) return;
+    startY = e.touches[0].clientY;
+    startX = e.touches[0].clientX;
+    currentY = startY;
+    tracking = true;
+    horizontal = false;
+    wrap.style.transition = 'none';
+    ind.style.transition = 'none';
+  };
+
+  const move = (e) => {
+    if(!tracking || refreshing || e.touches.length !== 1) return;
+    const x = e.touches[0].clientX;
+    currentY = e.touches[0].clientY;
+    const dy = currentY - startY;
+    const dx = x - startX;
+    if(dy <= 0){ return; }
+
+    // Let horizontal gestures pass through naturally.
+    if(Math.abs(dx) > Math.abs(dy) * 1.15){
+      horizontal = true;
+      tracking = false;
+      reset(false);
+      return;
+    }
+    if(horizontal) return;
+
+    e.preventDefault();
+    const resistance = 0.42 + Math.min(dy / 500, 0.12);
+    const y = Math.min(dy * resistance, MAX_PULL);
+    const progress = Math.min(y / (THRESHOLD * 0.42), 1);
+    wrap.style.transform = `translate3d(0,${y}px,0)`;
+    ind.style.opacity = String(Math.min(1, progress));
+    ind.style.transform = `translate3d(-50%,${Math.min(y - 8, 32)}px,0)`;
+    if(dy >= THRESHOLD) ind.classList.add('spin');
+    else ind.classList.remove('spin');
+  };
+
+  const end = async () => {
+    if(!tracking) return;
+    tracking = false;
+    const dy = currentY - startY;
+    const shouldRefresh = !horizontal && dy >= THRESHOLD;
+
+    if(!shouldRefresh){
+      reset(true);
+      return;
+    }
+
+    refreshing = true;
+    ind.classList.add('spin');
+    wrap.style.transition = 'transform .28s cubic-bezier(.22,1,.36,1)';
+    wrap.style.transform = 'translate3d(0,38px,0)';
+    ind.style.transition = 'transform .28s ease, opacity .2s ease';
+    ind.style.opacity = '1';
+    ind.style.transform = 'translate3d(-50%,26px,0)';
+
+    try{
+      if('serviceWorker' in navigator){
+        const reg = await navigator.serviceWorker.getRegistration();
+        if(reg) await reg.update();
+      }
+    }catch(err){ console.warn('PWA refresh update:', err); }
+
+    // Give the PWA a moment to finish the visual spring before reloading.
+    setTimeout(() => location.reload(), 260);
+  };
+
+  window.addEventListener('touchstart', begin, {passive:true});
+  window.addEventListener('touchmove', move, {passive:false});
+  window.addEventListener('touchend', end, {passive:true});
+  window.addEventListener('touchcancel', () => { tracking=false; reset(true); }, {passive:true});
+
+  reset(false);
 })();
 </script>
 </div>
