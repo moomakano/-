@@ -1672,6 +1672,8 @@ function removeClass(id) {
       modal.style.display = '';
       modal.style.zIndex = '';
       document.body.classList.remove('voice-modal-open');
+      // แจ้ง Voice Engine ว่า Modal ปิดแล้ว เพื่อให้รอบถัดไปเริ่มไมค์ใหม่ได้สะอาด
+      try { window.dispatchEvent(new CustomEvent('voice-modal-closed')); } catch(e) {}
       // หยุด focus/scroll lock จาก Voice ถ้ามี
       try { document.activeElement && document.activeElement.blur && document.activeElement.blur(); } catch(e) {}
       if (id === 'studentModal') {
@@ -2216,10 +2218,25 @@ body.voice-modal-open #voiceFab, body.voice-modal-open #voicePanel{display:none!
     return r;
   }
 
+  // iPhone/Safari บางรุ่นต้องปล่อย recognition ตัวเก่าก่อนเริ่มรอบใหม่
+  let restartGuard=0;
+  function resetRecognitionObject(){
+    const old=rec;
+    rec=null;
+    listening=false;
+    if(old){
+      try{ old.onresult=null; old.onerror=null; old.onend=null; old.stop(); }catch(e){}
+      try{ old.abort(); }catch(e){}
+    }
+  }
+
   function startListening(){
-    if(listening) return;
-    if(processing) return;
+    if(listening || processing) return;
     clearVoiceTimers();
+
+    // สำคัญมากสำหรับการใช้ซ้ำหลังบันทึกวิชา: เคลียร์ session เก่าทุกครั้ง
+    restartGuard++;
+    resetRecognitionObject();
     sessionId++;
     const mySession=sessionId;
     finalText='';
@@ -2228,10 +2245,10 @@ body.voice-modal-open #voiceFab, body.voice-modal-open #voicePanel{display:none!
     manuallyStopped=false;
     processing=false;
     panel.classList.add('show');
-    setState('listen','กำลังฟัง…');
-    show('กำลังฟัง… พูดได้เลย',false);
+    setState('listen','กำลังเปิดไมค์…');
+    show('กำลังเปิดไมค์… พูดได้เลย',false);
 
-    // สำคัญ: start() อยู่ใน click handler โดยตรง เพื่อให้ iPhone/Safari ยอมเปิดไมค์
+    // start() ต้องเกิดจาก click เดียวกันโดยตรง
     try{
       const newRec=makeRecognition(mySession);
       rec=newRec;
@@ -2239,8 +2256,9 @@ body.voice-modal-open #voiceFab, body.voice-modal-open #voicePanel{display:none!
     }catch(e){
       rec=null;
       listening=false;
-      setState('idle','พร้อมรับคำสั่ง');
-      show('แตะไมค์อีกครั้งเพื่อเริ่มพูด',false);
+      console.warn('Voice start failed:',e);
+      setState('idle','ไมค์ยังไม่พร้อม');
+      show('ไมค์ยังไม่พร้อม — แตะไมค์อีกครั้งแล้วพูดได้เลย',false);
     }
   }
 
@@ -2330,6 +2348,23 @@ body.voice-modal-open #voiceFab, body.voice-modal-open #voicePanel{display:none!
     closePanel();
     setState('idle','พร้อมรับคำสั่ง');
   };
+
+  // หลังบันทึก/ยกเลิก Modal ให้คืน Voice Engine สู่สถานะพร้อมใช้งาน
+  window.addEventListener('voice-modal-closed',()=>{
+    clearVoiceTimers();
+    processing=false;
+    listening=false;
+    if(rec){
+      try{ rec.abort(); }catch(e){}
+      rec=null;
+    }
+    sessionId++;
+    finalText='';
+    interimText='';
+    gotFinal=false;
+    setState('idle','พร้อมรับคำสั่ง');
+    show('แตะไมค์แล้วพูดได้เลย…',true);
+  });
 
   function onResult(e,mySession){
     if(mySession!==sessionId) return;
