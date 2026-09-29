@@ -2183,6 +2183,15 @@ body.voice-modal-open #voiceFab, body.voice-modal-open #voicePanel{display:none!
     return true;
   }
 
+  // ===== Voice Engine: stable session per tap =====
+  let endTimer=null;
+  let manuallyStopped=false;
+  let gotFinal=false;
+
+  function clearEndTimer(){
+    if(endTimer){ clearTimeout(endTimer); endTimer=null; }
+  }
+
   function makeRecognition(){
     const r=new SR();
     r.lang='th-TH';
@@ -2191,7 +2200,9 @@ body.voice-modal-open #voiceFab, body.voice-modal-open #voicePanel{display:none!
     r.maxAlternatives=1;
     r.onstart=()=>{
       listening=true;
+      manuallyStopped=false;
       setState('listen','กำลังฟัง…');
+      show('กำลังฟัง… พูดได้เลย',false);
     };
     r.onresult=onResult;
     r.onerror=onError;
@@ -2200,92 +2211,162 @@ body.voice-modal-open #voiceFab, body.voice-modal-open #voicePanel{display:none!
   }
 
   function startListening(){
-    if(listening) return;
+    if(listening || processing) return;
+    clearEndTimer();
     finalText='';
     interimText='';
+    gotFinal=false;
+    manuallyStopped=false;
     processing=false;
     panel.classList.add('show');
-    show('กำลังฟัง… พูดชื่อวิชา วัน เวลา และครูได้เลย',false);
-    setState('listen','กำลังฟัง…');
-    listening=true;
-    rec=makeRecognition();
-    try{ rec.start(); }
-    catch(e){
-      listening=false;
+    setState('listen','กำลังเริ่มไมค์…');
+    show('กำลังเปิดไมโครโฟน…',false);
+
+    // สร้าง recognition ใหม่ทุกครั้งที่กด เพื่อแก้ iOS session ค้าง
+    try{
+      rec=makeRecognition();
+      rec.start();
+    }catch(e){
       rec=null;
+      listening=false;
       setState('idle','พร้อมรับคำสั่ง');
-      show('ลองกดไมค์อีกครั้ง',false);
+      show('เปิดไมโครโฟนไม่สำเร็จ ลองกดอีกครั้ง',false);
+    }
+  }
+
+  function stopListening(){
+    manuallyStopped=true;
+    clearEndTimer();
+    if(rec){
+      try{ rec.stop(); }catch(e){
+        try{ rec.abort(); }catch(_e){}
+        onEnd();
+      }
+    }else{
+      listening=false;
+      finishRecognition();
     }
   }
 
   function finishRecognition(){
+    if(processing) return;
+    const spoken=(finalText||interimText||'').replace(/\s+/g,' ').trim();
     listening=false;
-    const spoken=(finalText||interimText||'').trim();
     if(!spoken){
-      processing=false;
-      setState('idle','พร้อมรับคำสั่ง');
-      show('ยังไม่ได้ยินข้อความ ลองกดไมค์แล้วพูดอีกครั้ง',false);
+      setState('idle','ไม่ได้ยินเสียง');
+      show('ไม่ได้ยินข้อความ ลองกดไมค์แล้วพูดใหม่',false);
       return;
     }
-    if(processing) return;
     processing=true;
     setState('process','กำลังประมวลผล…');
     show(spoken,false);
-    // ประมวลผลจากข้อความสุดท้ายเพียงครั้งเดียว ป้องกัน iOS onresult/onend แข่งกัน
-    requestAnimationFrame(()=>parseAndFill(spoken));
+    // ให้ UI อัปเดตก่อน แล้วประมวลผลเพียงครั้งเดียว
+    setTimeout(()=>{
+      try{ parseAndFill(spoken); }
+      catch(err){
+        console.error('Voice parse error:',err);
+        processing=false;
+        setState('idle','พร้อมรับคำสั่ง');
+        show('ประมวลผลไม่สำเร็จ ลองพูดอีกครั้ง',false);
+      }
+    },60);
   }
 
   fab.onclick=()=>{
-    if(listening && rec){ try{rec.stop();}catch(e){} return; }
+    if(listening){
+      stopListening();
+      return;
+    }
     startListening();
   };
 
-  document.getElementById('voiceStop').onclick=()=>{
-    if(listening && rec){ try{rec.stop();}catch(e){} }
+  const stopBtn=document.getElementById('voiceStop');
+  if(stopBtn) stopBtn.onclick=()=>{
+    if(listening) stopListening();
     else closePanel();
   };
-  document.getElementById('voiceClear').onclick=()=>{
-    finalText='';interimText='';processing=false;
+
+  const clearBtn=document.getElementById('voiceClear');
+  if(clearBtn) clearBtn.onclick=()=>{
+    if(listening) stopListening();
+    clearEndTimer();
+    finalText='';
+    interimText='';
+    gotFinal=false;
+    processing=false;
     show('แตะไมค์แล้วพูดได้เลย…',true);
-    status.textContent='พร้อมรับคำสั่ง';
     setState('idle','พร้อมรับคำสั่ง');
   };
-  document.getElementById('voiceClose').onclick=()=>{
-    if(listening && rec){try{rec.stop();}catch(e){}}
+
+  const closeBtn=document.getElementById('voiceClose');
+  if(closeBtn) closeBtn.onclick=()=>{
+    if(listening) stopListening();
+    clearEndTimer();
     closePanel();
+    setState('idle','พร้อมรับคำสั่ง');
   };
 
   function onResult(e){
-    interimText='';
+    let finals=[];
+    let interims=[];
     for(let i=e.resultIndex;i<e.results.length;i++){
-      const t=(e.results[i][0].transcript||'').trim();
-      if(e.results[i].isFinal) finalText+=(finalText?' ':'')+t;
-      else interimText+=(interimText?' ':'')+t;
+      const t=(e.results[i][0]?.transcript||'').trim();
+      if(!t) continue;
+      if(e.results[i].isFinal){
+        finals.push(t);
+        gotFinal=true;
+      }else{
+        interims.push(t);
+      }
     }
+    if(finals.length) finalText=(finalText+' '+finals.join(' ')).trim();
+    interimText=interims.join(' ').trim();
     const live=(finalText||interimText).trim();
-    if(live) show(live,false);
+    if(live){
+      show(live,false);
+      status.textContent=gotFinal?'รับข้อความแล้ว':'กำลังฟัง…';
+    }
   }
 
   function onError(e){
-    // iOS บางรุ่นส่ง aborted ก่อน onend แม้จะมีข้อความแล้ว ให้ onend ประมวลผลต่อ
-    if(e.error==='aborted' && (finalText||interimText)) return;
+    clearEndTimer();
+    const hasText=!!(finalText||interimText);
+    // aborted/canceled บน iOS ไม่ถือว่าเป็น error หากมีข้อความแล้ว
+    if(hasText && (e.error==='aborted' || e.error==='no-speech')){
+      listening=false;
+      rec=null;
+      finishRecognition();
+      return;
+    }
     listening=false;
-    if(e.error==='not-allowed'){
+    rec=null;
+    if(e.error==='not-allowed' || e.error==='service-not-allowed'){
       setState('idle','ไม่สามารถใช้ไมโครโฟนได้');
-      show('กรุณาอนุญาตการใช้ไมโครโฟนในการตั้งค่า Safari',false);
+      show('กรุณาอนุญาตไมโครโฟนให้ Safari/Chrome แล้วลองใหม่',false);
     }else if(e.error==='no-speech'){
       setState('idle','ไม่ได้ยินเสียง');
       show('ไม่ได้ยินเสียง ลองพูดอีกครั้ง',false);
+    }else if(e.error==='network'){
+      setState('idle','เชื่อมต่อระบบเสียงไม่ได้');
+      show('ตรวจสอบอินเทอร์เน็ต แล้วลองกดไมค์ใหม่',false);
     }else{
       setState('idle','พร้อมรับคำสั่ง');
-      if(!finalText&&!interimText) show('ลองกดไมค์แล้วพูดใหม่',false);
+      if(!hasText) show('เกิดข้อผิดพลาด ลองกดไมค์อีกครั้ง',false);
     }
   }
 
   function onEnd(){
+    clearEndTimer();
     listening=false;
+    const oldRec=rec;
     rec=null;
-    if(!processing) finishRecognition();
+    if(processing) return;
+
+    // รอเล็กน้อยให้ iOS ส่ง final result ก่อนประมวลผล
+    endTimer=setTimeout(()=>{
+      endTimer=null;
+      if(!processing) finishRecognition();
+    }, gotFinal ? 40 : 180);
   }
 
 })();
