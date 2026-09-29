@@ -1980,19 +1980,163 @@ body.voice-modal-open #voiceFab, body.voice-modal-open #voicePanel{display:none!
     const subjectMatch=txt.match(/(ภาษาไทย|ภาษาอังกฤษ|อังกฤษ|คณิตศาสตร์|คณิต|วิทยาศาสตร์|วิทย์|เปียโน|ว่ายน้ำ|สังคม|คอมพิวเตอร์|ดนตรี|ศิลปะ)/);
     const teacherMatch=txt.match(/(?:ครู|อาจารย์|อ\.)\s*[ก-๙A-Za-z]+/);
 
-    let h,m;
-    const hm=txt.match(/(?:เวลา|ตอน)?\s*([01]?\d|2[0-3])\s*(?:[:.]\s*(\d{1,2}))?/);
-    if(hm){ h=+hm[1]; m=hm[2]!==undefined ? +hm[2] : 0; }
+    // ===== Voice Time Parser: ครอบคลุมเวลา 07:00 - 18:00 แบบละเอียด =====
+    function parseVoiceTime(text){
+      const raw=(text||'').toLowerCase().trim();
+      if(!raw) return null;
 
-    const words=[
-      [/หกโมงสิบห้า/,18,15],[/หกโมงครึ่ง/,18,30],[/หกโมง/,18,0],
-      [/ห้าโมงครึ่ง/,17,30],[/ห้าโมง/,17,0],
-      [/สี่โมงครึ่ง|บ่ายสี่โมงครึ่ง/,16,30],[/สี่โมง/,16,0],
-      [/สามโมงครึ่ง/,15,30],[/สามโมง/,15,0]
-    ];
-    if(h===undefined){
-      for(const [re,hh,mm] of words){ if(re.test(txt)){h=hh;m=mm;break;} }
+      // แปลงเลขไทยเป็นเลขอารบิก
+      const thaiDigits={'๐':'0','๑':'1','๒':'2','๓':'3','๔':'4','๕':'5','๖':'6','๗':'7','๘':'8','๙':'9'};
+      const t=raw.replace(/[๐-๙]/g,ch=>thaiDigits[ch]);
+
+      const valid=(hh,mm=0)=>{
+        hh=Number(hh); mm=Number(mm);
+        // ระบบนี้ตั้งใจรองรับช่วง 07:00 ถึง 18:00
+        if(!Number.isFinite(hh)||!Number.isFinite(mm)||mm<0||mm>59) return null;
+        if(hh<7 || hh>18) return null;
+        if(hh===18 && mm>0) return null;
+        return [hh,mm];
+      };
+
+      // ===== Thai natural clock phrases (07:00-18:00) =====
+      // รองรับ: 8โมงครึ่ง, 9โมง, 9โมงครึ่ง, ... , เที่ยง, เที่ยงครึ่ง,
+      // บ่ายโมง/บ่ายโมงครึ่ง, บ่ายสองโมง/บ่ายสองโมงครึ่ง, บ่ายสามโมง,
+      // สี่โมง/สี่โมงครึ่ง, ห้าโมง/ห้าโมงครึ่ง, หกโมง/หกโมงครึ่ง
+      const naturalHours = {
+        'เจ็ด':7,'แปด':8,'เก้า':9,'สิบ':10,'สิบเอ็ด':11,
+        'หนึ่ง':1,'สอง':2,'สาม':3,'สี่':4,'ห้า':5,'หก':6
+      };
+      if(/เที่ยงครึ่ง/.test(t)) return [12,30];
+      if(/เที่ยง/.test(t)) return [12,0];
+
+      const thaiNatural = Object.keys(naturalHours).sort((a,b)=>b.length-a.length);
+      for(const hw of thaiNatural){
+        const hv=naturalHours[hw];
+        const re = new RegExp('(?:บ่าย\\s*)?'+hw+'\\s*โมง(?:\\s*(ครึ่ง))?');
+        const hit=t.match(re);
+        if(hit){
+          let hh=hv;
+          const isAfternoon=/บ่าย/.test(hit[0]);
+          if(isAfternoon && hh<12) hh+=12;
+          const mm=hit[1]?30:0;
+          const r=valid(hh,mm);
+          if(r) return r;
+        }
+      }
+
+      // 7:15 / 7.15 / 7 จุด 15 / 07 15 / 18:00
+      let m=t.match(/(?:เวลา|ตอน|ประมาณ|ช่วง)?\s*(\d{1,2})\s*(?::|\.|จุด|นาฬิกา|โมง)\s*(\d{1,2})\s*(?:นาที)?/);
+      if(m){
+        const r=valid(m[1],m[2]);
+        if(r) return r;
+      }
+
+      // 7 15 / 07 05 — Speech Recognition บางครั้งตัดเครื่องหมายออก
+      m=t.match(/(?:เวลา|ตอน|ประมาณ|ช่วง)?\s*(\d{1,2})\s+(\d{2})\s*(?:นาที)?/);
+      if(m){
+        const r=valid(m[1],m[2]);
+        if(r) return r;
+      }
+
+      // 7โมง / 7โมงเช้า / 7โมง 15 / 7 โมง 15 นาที / 18 นาฬิกา
+      m=t.match(/(?:เวลา|ตอน|ประมาณ|ช่วง)?\s*(\d{1,2})\s*โมง(?:\s*(\d{1,2})\s*(?:นาที)?)?/);
+      if(m){
+        let hh=Number(m[1]), mm=m[2]!==undefined?Number(m[2]):0;
+        if(/บ่าย|เย็น/.test(t) && hh<12) hh+=12;
+        const r=valid(hh,mm);
+        if(r) return r;
+      }
+
+      // บ่ายโมง / บ่าย 1 / บ่ายสอง / บ่ายสาม / บ่ายสี่ / บ่ายห้า
+      const digitHour={'หนึ่ง':1,'สอง':2,'สาม':3,'สี่':4,'ห้า':5,'หก':6,'เจ็ด':7,'แปด':8,'เก้า':9,'สิบ':10,'สิบเอ็ด':11,'สิบสอง':12};
+      m=t.match(/บ่าย\s*(หนึ่ง|สอง|สาม|สี่|ห้า|หก|เจ็ด|แปด|เก้า|สิบ|สิบเอ็ด|สิบสอง|\d{1,2})(?:\s*(?:โมง|นาฬิกา))?(?:\s*(\d{1,2})\s*นาที)?/);
+      if(m){
+        let hh=/^\d+$/.test(m[1])?Number(m[1]):digitHour[m[1]];
+        if(hh===1) hh=13; else if(hh<12) hh+=12;
+        const mm=m[2]!==undefined?Number(m[2]):0;
+        const r=valid(hh,mm);
+        if(r) return r;
+      }
+
+      // ภาษาไทย — รองรับนาที 0-59 แบบประกอบคำ เช่น สิบห้า, ยี่สิบห้า, สามสิบ, สี่สิบห้า
+      const minuteWords={
+        'ศูนย์':0,'หนึ่ง':1,'สอง':2,'สาม':3,'สี่':4,'ห้า':5,'หก':6,'เจ็ด':7,'แปด':8,'เก้า':9,
+        'สิบ':10,'สิบเอ็ด':11,'สิบสอง':12,'สิบสาม':13,'สิบสี่':14,'สิบห้า':15,'สิบหก':16,'สิบเจ็ด':17,'สิบแปด':18,'สิบเก้า':19,
+        'ยี่สิบ':20,'ยี่สิบเอ็ด':21,'ยี่สิบสอง':22,'ยี่สิบสาม':23,'ยี่สิบสี่':24,'ยี่สิบห้า':25,'ยี่สิบหก':26,'ยี่สิบเจ็ด':27,'ยี่สิบแปด':28,'ยี่สิบเก้า':29,
+        'สามสิบ':30,'สามสิบเอ็ด':31,'สามสิบสอง':32,'สามสิบสาม':33,'สามสิบสี่':34,'สามสิบห้า':35,'สามสิบหก':36,'สามสิบเจ็ด':37,'สามสิบแปด':38,'สามสิบเก้า':39,
+        'สี่สิบ':40,'สี่สิบเอ็ด':41,'สี่สิบสอง':42,'สี่สิบสาม':43,'สี่สิบสี่':44,'สี่สิบห้า':45,'สี่สิบหก':46,'สี่สิบเจ็ด':47,'สี่สิบแปด':48,'สี่สิบเก้า':49,
+        'ห้าสิบ':50,'ห้าสิบเอ็ด':51,'ห้าสิบสอง':52,'ห้าสิบสาม':53,'ห้าสิบสี่':54,'ห้าสิบห้า':55,'ห้าสิบหก':56,'ห้าสิบเจ็ด':57,'ห้าสิบแปด':58,'ห้าสิบเก้า':59
+      };
+      const hourWords={
+        'เจ็ด':7,'แปด':8,'เก้า':9,'สิบ':10,'สิบเอ็ด':11,'สิบสอง':12,
+        'หนึ่ง':1,'สอง':2,'สาม':3,'สี่':4,'ห้า':5,'หก':6
+      };
+
+      // จับรูปแบบ “เจ็ดโมงสิบห้า”, “เก้าโมงครึ่ง”, “ห้าโมงเย็น”, “หกโมงเย็น”
+      const hourKeys=Object.keys(hourWords).sort((a,b)=>b.length-a.length);
+      for(const hw of hourKeys){
+        const hourVal=hourWords[hw];
+        const idx=t.indexOf(hw+'โมง');
+        const idxClock=t.indexOf(hw+'นาฬิกา');
+        const pos=idx>=0?idx:idxClock;
+        if(pos<0) continue;
+
+        let hh=hourVal;
+        const before=t.slice(Math.max(0,pos-12),pos);
+        const after=t.slice(pos + (idx>=0 ? (hw+'โมง').length : (hw+'นาฬิกา').length));
+
+        // เช้า = คงชั่วโมงเดิม, บ่าย/เย็น = +12 (ยกเว้น 12)
+        if(/บ่าย|เย็น/.test(before) && hh<12) hh+=12;
+        if(/หนึ่งทุ่ม|สองทุ่ม|สามทุ่ม|สี่ทุ่ม|ห้าทุ่ม|หกทุ่ม/.test(t)) return null; // เกินช่วงที่กำหนด
+
+        if(after.includes('ครึ่ง')) return valid(hh,30);
+
+        let mm=null;
+        const minuteKeys=Object.keys(minuteWords).sort((a,b)=>b.length-a.length);
+        for(const mw of minuteKeys){
+          if(after.includes(mw)) { mm=minuteWords[mw]; break; }
+        }
+        if(mm===null){
+          const dm=after.match(/\s*(\d{1,2})\s*(?:นาที)?/);
+          if(dm) mm=Number(dm[1]);
+        }
+        if(mm===null) mm=0;
+        const r=valid(hh,mm);
+        if(r) return r;
+      }
+
+      // “เจ็ดโมงเช้า” / “แปดโมงเย็น” ที่ไม่มีนาที
+      for(const hw of hourKeys){
+        if(t.includes(hw+'โมงเช้า') || t.includes(hw+'โมง')){
+          let hh=hourWords[hw];
+          if(t.includes(hw+'โมงเย็น') && hh<12) hh+=12;
+          const r=valid(hh,0);
+          if(r) return r;
+        }
+      }
+
+      // ภาษาไทยแบบ “เจ็ด จุด หนึ่งห้า” หรือ “สิบแปด จุด ศูนย์ศูนย์”
+      const hourThai=hourKeys.find(x=>t.includes(x+'จุด'));
+      if(hourThai){
+        const tail=t.split(hourThai+'จุด')[1]||'';
+        let mm=null;
+        // คำเลข 2 หลักที่พูดติดกัน
+        const twoDigit={
+          'ศูนย์ห้า':5,'หนึ่งศูนย์':10,'หนึ่งห้า':15,'สองศูนย์':20,'สองห้า':25,'สามศูนย์':30,'สามห้า':35,'สี่ศูนย์':40,'สี่ห้า':45,'ห้าศูนย์':50,'ห้าห้า':55
+        };
+        for(const [w,v] of Object.entries(twoDigit)){if(tail.includes(w)){mm=v;break;}}
+        if(mm===null){
+          const n=Object.entries(minuteWords).sort((a,b)=>b[0].length-a[0].length).find(([w])=>tail.includes(w));
+          if(n) mm=n[1];
+        }
+        const r=valid(hourWords[hourThai],mm===null?0:mm);
+        if(r) return r;
+      }
+
+      return null;
     }
+    const parsedTime=parseVoiceTime(txt);
+    if(parsedTime){ h=parsedTime[0]; m=parsedTime[1]; }
 
     // ไม่เดาเวลา ถ้าผู้ใช้ไม่ได้พูดเวลา
     const hasTime=h!==undefined;
