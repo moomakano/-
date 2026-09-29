@@ -2179,105 +2179,122 @@ body.voice-modal-open #voiceFab, body.voice-modal-open #voicePanel{display:none!
     const summary=[subj?'📚 '+subj:'',teacher?'👨‍🏫 '+teacher:'',start?'⏰ '+start+' - '+end:''].filter(Boolean).join('  ');
     show(`ได้ยิน: “${txt}”${summary?'\n'+summary:''}`,false);
     status.textContent='ตรวจข้อมูลแล้ว กด “บันทึกวิชา” ได้เลย';
+    processing=false;
     setState('idle','ตรวจข้อมูลแล้ว');
     return true;
   }
 
-  // ===== Voice Engine: stable session per tap =====
+  // ===== Voice Engine V2: Easy + Stable =====
+  // หลักการ: 1 tap = 1 session, แสดง interim ทันที, final แล้วประมวลผลครั้งเดียว
   let endTimer=null;
+  let finalizeTimer=null;
   let manuallyStopped=false;
   let gotFinal=false;
+  let sessionId=0;
 
-  function clearEndTimer(){
+  function clearVoiceTimers(){
     if(endTimer){ clearTimeout(endTimer); endTimer=null; }
+    if(finalizeTimer){ clearTimeout(finalizeTimer); finalizeTimer=null; }
   }
 
-  function makeRecognition(){
+  function makeRecognition(mySession){
     const r=new SR();
     r.lang='th-TH';
     r.interimResults=true;
     r.continuous=false;
     r.maxAlternatives=1;
     r.onstart=()=>{
+      if(mySession!==sessionId) return;
       listening=true;
       manuallyStopped=false;
       setState('listen','กำลังฟัง…');
       show('กำลังฟัง… พูดได้เลย',false);
     };
-    r.onresult=onResult;
-    r.onerror=onError;
-    r.onend=onEnd;
+    r.onresult=(e)=>onResult(e,mySession);
+    r.onerror=(e)=>onError(e,mySession);
+    r.onend=()=>onEnd(mySession);
     return r;
   }
 
   function startListening(){
-    if(listening || processing) return;
-    clearEndTimer();
+    if(listening) return;
+    if(processing) return;
+    clearVoiceTimers();
+    sessionId++;
+    const mySession=sessionId;
     finalText='';
     interimText='';
     gotFinal=false;
     manuallyStopped=false;
     processing=false;
     panel.classList.add('show');
-    setState('listen','กำลังเริ่มไมค์…');
-    show('กำลังเปิดไมโครโฟน…',false);
+    setState('listen','กำลังฟัง…');
+    show('กำลังฟัง… พูดได้เลย',false);
 
-    // สำคัญบน iPhone/Safari: start() ต้องเกิดใกล้กับการแตะปุ่ม
-    // จึงไม่ใช้ setTimeout ก่อน rec.start() เพราะอาจทำให้ระบบมองว่าไม่ได้เกิดจาก user gesture
+    // สำคัญ: start() อยู่ใน click handler โดยตรง เพื่อให้ iPhone/Safari ยอมเปิดไมค์
     try{
-      rec=makeRecognition();
-      rec.start();
+      const newRec=makeRecognition(mySession);
+      rec=newRec;
+      newRec.start();
     }catch(e){
       rec=null;
       listening=false;
       setState('idle','พร้อมรับคำสั่ง');
-      show('เปิดไมโครโฟนไม่สำเร็จ ลองกดไมค์อีกครั้ง',false);
+      show('แตะไมค์อีกครั้งเพื่อเริ่มพูด',false);
     }
   }
 
   function stopListening(){
+    if(!listening && !rec) return;
     manuallyStopped=true;
-    clearEndTimer();
-    if(rec){
-      try{ rec.stop(); }catch(e){
-        try{ rec.abort(); }catch(_e){}
-        onEnd();
-      }
+    clearVoiceTimers();
+    const myRec=rec;
+    listening=false;
+    if(myRec){
+      try{ myRec.stop(); }catch(e){ try{myRec.abort();}catch(_e){} }
     }else{
-      listening=false;
       finishRecognition();
     }
   }
 
-  function finishRecognition(){
-    if(processing) return;
+  function finishRecognition(mySession=sessionId){
+    if(mySession!==sessionId || processing) return;
+    clearVoiceTimers();
     const spoken=(finalText||interimText||'').replace(/\s+/g,' ').trim();
     listening=false;
+    rec=null;
     if(!spoken){
-      setState('idle','ไม่ได้ยินเสียง');
-      show('ไม่ได้ยินข้อความ ลองกดไมค์แล้วพูดใหม่',false);
+      processing=false;
+      setState('idle','พร้อมรับคำสั่ง');
+      show('ยังไม่ได้ยินข้อความ — แตะไมค์แล้วลองพูดใหม่',false);
       return;
     }
     processing=true;
     setState('process','กำลังประมวลผล…');
     show(spoken,false);
-    // ให้ UI อัปเดตก่อน แล้วประมวลผลเพียงครั้งเดียว
-    setTimeout(()=>{
-      try{ parseAndFill(spoken); }
-      catch(err){
+    // ให้ iOS วาดข้อความก่อน แล้วค่อย parse เพียงครั้งเดียว
+    finalizeTimer=setTimeout(()=>{
+      finalizeTimer=null;
+      if(mySession!==sessionId) return;
+      try{
+        const ok=parseAndFill(spoken);
+        if(!ok){
+          processing=false;
+          setState('idle','พร้อมรับคำสั่ง');
+          show('อ่านคำสั่งไม่สำเร็จ ลองพูดใหม่',false);
+        }
+      }catch(err){
         console.error('Voice parse error:',err);
         processing=false;
         setState('idle','พร้อมรับคำสั่ง');
-        show('ประมวลผลไม่สำเร็จ ลองพูดอีกครั้ง',false);
+        show('เกิดข้อผิดพลาด ลองกดไมค์อีกครั้ง',false);
       }
-    },60);
+    },80);
   }
 
   fab.onclick=()=>{
-    if(listening){
-      stopListening();
-      return;
-    }
+    if(listening){ stopListening(); return; }
+    if(processing) return;
     startListening();
   };
 
@@ -2289,25 +2306,33 @@ body.voice-modal-open #voiceFab, body.voice-modal-open #voicePanel{display:none!
 
   const clearBtn=document.getElementById('voiceClear');
   if(clearBtn) clearBtn.onclick=()=>{
-    if(listening) stopListening();
-    clearEndTimer();
+    sessionId++;
+    if(rec){ try{rec.abort();}catch(e){} }
+    rec=null;
+    listening=false;
+    processing=false;
+    clearVoiceTimers();
     finalText='';
     interimText='';
     gotFinal=false;
-    processing=false;
-    show('แตะไมค์แล้วพูดได้เลย…',true);
     setState('idle','พร้อมรับคำสั่ง');
+    show('แตะไมค์แล้วพูดได้เลย…',true);
   };
 
   const closeBtn=document.getElementById('voiceClose');
   if(closeBtn) closeBtn.onclick=()=>{
-    if(listening) stopListening();
-    clearEndTimer();
+    sessionId++;
+    if(rec){ try{rec.abort();}catch(e){} }
+    rec=null;
+    listening=false;
+    processing=false;
+    clearVoiceTimers();
     closePanel();
     setState('idle','พร้อมรับคำสั่ง');
   };
 
-  function onResult(e){
+  function onResult(e,mySession){
+    if(mySession!==sessionId) return;
     let finals=[];
     let interims=[];
     for(let i=e.resultIndex;i<e.results.length;i++){
@@ -2329,45 +2354,51 @@ body.voice-modal-open #voiceFab, body.voice-modal-open #voicePanel{display:none!
     }
   }
 
-  function onError(e){
-    clearEndTimer();
+  function onError(e,mySession){
+    if(mySession!==sessionId) return;
+    clearVoiceTimers();
     const hasText=!!(finalText||interimText);
-    // aborted/canceled บน iOS ไม่ถือว่าเป็น error หากมีข้อความแล้ว
-    if(hasText && (e.error==='aborted' || e.error==='no-speech')){
-      listening=false;
-      rec=null;
-      finishRecognition();
-      return;
-    }
     listening=false;
     rec=null;
+
+    // iOS มักส่ง aborted/no-speech หลังมีข้อความแล้ว — ให้ใช้ข้อความนั้นต่อ
+    if(hasText && (e.error==='aborted' || e.error==='no-speech')){
+      finishRecognition(mySession);
+      return;
+    }
     if(e.error==='not-allowed' || e.error==='service-not-allowed'){
-      setState('idle','ไม่สามารถใช้ไมโครโฟนได้');
-      show('กรุณาอนุญาตไมโครโฟนให้ Safari/Chrome แล้วลองใหม่',false);
+      processing=false;
+      setState('idle','ต้องอนุญาตไมโครโฟน');
+      show('กรุณาอนุญาตไมโครโฟน แล้วกดไมค์อีกครั้ง',false);
     }else if(e.error==='no-speech'){
+      processing=false;
       setState('idle','ไม่ได้ยินเสียง');
-      show('ไม่ได้ยินเสียง ลองพูดอีกครั้ง',false);
+      show('ไม่ได้ยินเสียง — แตะไมค์แล้วพูดใหม่',false);
     }else if(e.error==='network'){
-      setState('idle','เชื่อมต่อระบบเสียงไม่ได้');
-      show('ตรวจสอบอินเทอร์เน็ต แล้วลองกดไมค์ใหม่',false);
+      processing=false;
+      setState('idle','เชื่อมต่อไม่ได้');
+      show('ตรวจสอบอินเทอร์เน็ต แล้วลองใหม่',false);
     }else{
+      processing=false;
       setState('idle','พร้อมรับคำสั่ง');
-      if(!hasText) show('เกิดข้อผิดพลาด ลองกดไมค์อีกครั้ง',false);
+      if(!hasText) show('แตะไมค์แล้วลองพูดใหม่',false);
+      else finishRecognition(mySession);
     }
   }
 
-  function onEnd(){
-    clearEndTimer();
+  function onEnd(mySession){
+    if(mySession!==sessionId) return;
     listening=false;
-    const oldRec=rec;
     rec=null;
     if(processing) return;
+    clearVoiceTimers();
 
-    // รอเล็กน้อยให้ iOS ส่ง final result ก่อนประมวลผล
+    // ให้ final result จาก iOS เข้ามาก่อนเล็กน้อย
     endTimer=setTimeout(()=>{
       endTimer=null;
-      if(!processing) finishRecognition();
-    }, gotFinal ? 180 : 700);
+      if(mySession!==sessionId || processing) return;
+      finishRecognition(mySession);
+    }, gotFinal ? 220 : 550);
   }
 
 })();
