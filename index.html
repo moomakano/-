@@ -1444,7 +1444,9 @@ function addClass(){
  const make=d=>st.classes.push({id:Date.now()+Math.random(),dateStr:formatDateKey(d),title,time:`${start} - ${end} น.`,loc:loc||'📍 ห้องเรียน',reward,done:false});
  if(repeat.length){const base=new Date(selectedDate);for(let i=0;i<365;i++){const d=new Date(base);d.setDate(base.getDate()+i);if(repeat.includes(d.getDay()))make(d);}}
  else make(new Date(selectedDate));
- saveAppData();renderCalendar();renderSchedule();closeModal('classModal');showToast('✨ เพิ่มตารางเรียนแล้ว');
+ saveAppData();renderCalendar();renderSchedule();
+ closeModal('classModal');
+ setTimeout(()=>showToast('✨ เพิ่มตารางเรียนแล้ว'),80);
  document.getElementById('inputSubject').value='';document.getElementById('inputStartTime').value='';document.getElementById('inputEndTime').value='';document.getElementById('inputLoc').value='';document.querySelectorAll('.repeat-day').forEach(c=>c.checked=false);
 }
 
@@ -1644,8 +1646,15 @@ function removeClass(id) {
     }
 
     function closeModal(id) {
-      document.getElementById(id).classList.remove('active');
+      const modal = document.getElementById(id);
+      if (!modal) return;
+      // ล้าง inline styles ที่ Voice Assistant ใส่ไว้ เพื่อให้ CSS เดิมควบคุม Modal ได้
+      modal.classList.remove('active');
+      modal.style.display = '';
+      modal.style.zIndex = '';
       document.body.classList.remove('voice-modal-open');
+      // หยุด focus/scroll lock จาก Voice ถ้ามี
+      try { document.activeElement && document.activeElement.blur && document.activeElement.blur(); } catch(e) {}
       if (id === 'studentModal') {
         document.getElementById('editStudentId').value = '';
       }
