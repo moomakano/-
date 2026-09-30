@@ -1951,18 +1951,14 @@ body.voice-modal-open #voiceFab, body.voice-modal-open #voicePanel{display:none!
     finalText='';
     interimText='';
     processing=false;
-    voiceArmed=true;
-    panel.classList.add('show');
+    listening=false;
+    engineBusy=false;
+    // สำคัญ: หลังบันทึกไม่สั่ง start/abort ไมค์อัตโนมัติ
+    // รอบถัดไปต้องเริ่มจากการแตะปุ่มไมค์โดยตรง เพื่อให้ Safari รับ user gesture
+    rec=null;
+    panel.classList.remove('show');
     setState('idle','พร้อมรับคำสั่ง');
-    show('พร้อมรับคำสั่งครั้งต่อไป…',true);
-    // If Safari has ended the continuous session, re-arm it without requiring a new permission prompt.
-    if(!listening){
-      clearTimeout(restartTimer);
-      restartTimer=setTimeout(()=>{
-        if(!voiceArmed || listening) return;
-        try{ rec=makeRecognition(); listening=true; rec.start(); }catch(e){ listening=false; rec=null; }
-      },350);
-    }
+    show('แตะไมค์แล้วพูดได้เลย…',true);
   };
 
   fab.onclick=()=>{
@@ -1978,8 +1974,6 @@ body.voice-modal-open #voiceFab, body.voice-modal-open #voicePanel{display:none!
   let processing=false;
   let finalText='';
   let interimText='';
-  let voiceArmed=false;
-  let restartTimer=null;
 
   function setState(state,msg){
     status.textContent=msg;
@@ -2209,7 +2203,7 @@ body.voice-modal-open #voiceFab, body.voice-modal-open #voicePanel{display:none!
     const r=new SR();
     r.lang='th-TH';
     r.interimResults=true;
-    r.continuous=true;
+    r.continuous=false;
     r.maxAlternatives=1;
     r.onstart=()=>{
       listening=true;
@@ -2221,19 +2215,22 @@ body.voice-modal-open #voiceFab, body.voice-modal-open #voicePanel{display:none!
     return r;
   }
 
+  let engineBusy=false;
   function startListening(){
-    if(listening) return;
+    if(listening || engineBusy) return;
     finalText='';
     interimText='';
     processing=false;
     panel.classList.add('show');
     show('กำลังฟัง… พูดชื่อวิชา วัน เวลา และครูได้เลย',false);
     setState('listen','กำลังฟัง…');
-    voiceArmed=true;
-    listening=true;
-    rec=makeRecognition();
-    try{ rec.start(); }
-    catch(e){
+    engineBusy=true;
+    const r=makeRecognition();
+    rec=r;
+    try{
+      r.start();
+    }catch(e){
+      engineBusy=false;
       listening=false;
       rec=null;
       setState('idle','พร้อมรับคำสั่ง');
@@ -2263,27 +2260,23 @@ body.voice-modal-open #voiceFab, body.voice-modal-open #voicePanel{display:none!
     finalText='';
     interimText='';
     processing=false;
-    voiceArmed=true;
-    panel.classList.add('show');
+    listening=false;
+    engineBusy=false;
+    // สำคัญ: หลังบันทึกไม่สั่ง start/abort ไมค์อัตโนมัติ
+    // รอบถัดไปต้องเริ่มจากการแตะปุ่มไมค์โดยตรง เพื่อให้ Safari รับ user gesture
+    rec=null;
+    panel.classList.remove('show');
     setState('idle','พร้อมรับคำสั่ง');
-    show('พร้อมรับคำสั่งครั้งต่อไป…',true);
-    // If Safari has ended the continuous session, re-arm it without requiring a new permission prompt.
-    if(!listening){
-      clearTimeout(restartTimer);
-      restartTimer=setTimeout(()=>{
-        if(!voiceArmed || listening) return;
-        try{ rec=makeRecognition(); listening=true; rec.start(); }catch(e){ listening=false; rec=null; }
-      },350);
-    }
+    show('แตะไมค์แล้วพูดได้เลย…',true);
   };
 
   fab.onclick=()=>{
-    if(listening && rec){ voiceArmed=false; try{rec.stop();}catch(e){} return; }
+    if(listening && rec){ try{rec.stop();}catch(e){} return; }
     startListening();
   };
 
   document.getElementById('voiceStop').onclick=()=>{
-    if(listening && rec){ voiceArmed=false; try{rec.stop();}catch(e){} }
+    if(listening && rec){ try{rec.stop();}catch(e){} }
     else closePanel();
   };
   document.getElementById('voiceClear').onclick=()=>{
@@ -2293,7 +2286,7 @@ body.voice-modal-open #voiceFab, body.voice-modal-open #voicePanel{display:none!
     setState('idle','พร้อมรับคำสั่ง');
   };
   document.getElementById('voiceClose').onclick=()=>{
-    if(listening && rec){voiceArmed=false;try{rec.stop();}catch(e){}}
+    if(listening && rec){try{rec.stop();}catch(e){}}
     closePanel();
   };
 
@@ -2312,6 +2305,7 @@ body.voice-modal-open #voiceFab, body.voice-modal-open #voicePanel{display:none!
     // iOS บางรุ่นส่ง aborted ก่อน onend แม้จะมีข้อความแล้ว ให้ onend ประมวลผลต่อ
     if(e.error==='aborted' && (finalText||interimText)) return;
     listening=false;
+    engineBusy=false;
     if(e.error==='not-allowed'){
       setState('idle','ไม่สามารถใช้ไมโครโฟนได้');
       show('กรุณาอนุญาตการใช้ไมโครโฟนในการตั้งค่า Safari',false);
@@ -2326,26 +2320,13 @@ body.voice-modal-open #voiceFab, body.voice-modal-open #voicePanel{display:none!
 
   function onEnd(){
     listening=false;
-    // Keep the same microphone session alive after a result. Safari PWA is
-    // much more reliable when the Web Speech session is not torn down between commands.
-    if(voiceArmed){
-      if(!processing && (finalText||interimText)) finishRecognition();
-      clearTimeout(restartTimer);
-      restartTimer=setTimeout(()=>{
-        if(!voiceArmed || listening) return;
-        try{
-          rec=makeRecognition();
-          listening=true;
-          rec.start();
-        }catch(e){
-          listening=false;
-          rec=null;
-        }
-      },450);
-      return;
-    }
+    engineBusy=false;
+    const endedRec=rec;
     rec=null;
+    // ปล่อย recognition object ให้ Safari จบ lifecycle อย่างสะอาด
+    // แต่ห้าม start ใหม่อัตโนมัติ เพราะ Safari PWA ต้องการ user gesture
     if(!processing) finishRecognition();
+    try{ if(endedRec) endedRec.abort(); }catch(e){}
   }
 
 })();
