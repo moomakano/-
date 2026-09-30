@@ -883,6 +883,20 @@ body.ptr-leaving #appWrap{
  transform:translate3d(0,-4px,0)!important;
 }
 
+
+/* ===== Nara V2: Tap-to-Edit + Manual Stars ===== */
+.class-card{cursor:pointer;transition:transform .18s ease,box-shadow .18s ease,background-color .18s ease;}
+.class-card:active{transform:scale(.985);}
+.class-card .card-actions button{position:relative;z-index:2;}
+.star-area{display:flex;align-items:center;gap:6px;}
+.star-add-btn{width:32px;height:32px;border:1px solid rgba(255,255,255,.45);border-radius:50%;background:rgba(255,255,255,.18);color:#fff;display:flex;align-items:center;justify-content:center;font-size:.95rem;cursor:pointer;backdrop-filter:blur(8px);transition:transform .16s ease,background .16s ease;}
+.star-add-btn:active{transform:scale(.88);background:rgba(255,255,255,.3);}
+.edit-hint{font-size:.72rem;color:#999;margin-top:5px;text-align:center;}
+.manual-star-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-top:8px;}
+.manual-star-btn{border:0;border-radius:16px;padding:13px 6px;background:#fff0f5;color:#c2185b;font-family:inherit;font-size:1rem;font-weight:700;box-shadow:0 3px 10px rgba(233,30,99,.10);cursor:pointer;transition:transform .16s ease,background .16s ease;}
+.manual-star-btn:active{transform:scale(.94);background:#f8bbd0;}
+body.dark .manual-star-btn{background:#2b2027;color:#ff8fbd;}
+
 </style>
 </head>
 <body>
@@ -900,9 +914,12 @@ body.ptr-leaving #appWrap{
           <h1 id="currentStudentTitle">👧 น้องนารา</h1>
           <div class="subtitle">ตารางเรียน & สะสมดาวแลกของรางวัล ⭐️</div>
         </div>
-        <div class="star-badge" onclick="switchTab('shop')">
-          <i class="fa-solid fa-star"></i>
-          <span id="starCount">0</span>
+        <div class="star-area">
+          <div class="star-badge" onclick="switchTab('shop')" title="เปิดร้านรางวัล">
+            <i class="fa-solid fa-star"></i>
+            <span id="starCount">0</span>
+          </div>
+          <button class="star-add-btn" onclick="openManualStarModal(event)" title="เพิ่มดาวเอง">+</button>
         </div>
       </div>
 
@@ -1068,7 +1085,8 @@ body.ptr-leaving #appWrap{
   <!-- Modal 2: Add Subject Form -->
   <div class="modal" id="classModal">
     <div class="modal-content">
-      <div class="modal-title">➕ เพิ่มวิชาเรียนใหม่</div>
+      <div class="modal-title" id="classModalTitle">➕ เพิ่มวิชาเรียนใหม่</div>
+      <input type="hidden" id="editClassId" value="">
 
       <div class="preset-title">💡 เลือกวิชาแนะนำด่วน:</div>
       <div class="preset-container">
@@ -1119,9 +1137,10 @@ body.ptr-leaving #appWrap{
         <label>ดาวที่จะได้รับเมื่อเรียนเสร็จ</label>
         <input type="number" id="inputStars" value="1" min="1">
       </div>
+      <div class="edit-hint" id="classEditHint">แตะการ์ดวิชาเพื่อแก้ไขได้ทุกเมื่อ</div>
       <div class="modal-actions">
         <button class="btn-cancel" onclick="closeModal('classModal')">ยกเลิก</button>
-        <button class="btn-submit" onclick="addClass()">บันทึกวิชา</button>
+        <button class="btn-submit" id="classSaveBtn" onclick="saveClassForm()">บันทึกวิชา</button>
       </div>
     </div>
   </div>
@@ -1158,6 +1177,23 @@ body.ptr-leaving #appWrap{
       <button class="delete-choice-btn" onclick="confirmDeleteChoice('all')">ลบทั้งตาราง</button>
       <button class="delete-choice-btn danger" onclick="confirmDeleteChoice('future')">ลบตั้งแต่วันนี้เป็นต้นไป</button>
       <button class="delete-choice-cancel" onclick="closeDeleteChoice()">ยกเลิก</button>
+    </div>
+  </div>
+
+  <!-- Manual Star Modal -->
+  <div class="modal" id="manualStarModal">
+    <div class="modal-content">
+      <div class="modal-title">⭐ เพิ่มดาวให้น้องนารา</div>
+      <div style="text-align:center;color:#888;font-size:.9rem;margin-bottom:8px;">เลือกจำนวนดาวได้เลย ไม่ต้องพิมพ์ตัวเลข</div>
+      <div class="manual-star-grid">
+        <button class="manual-star-btn" onclick="addManualStars(1)">+1 ⭐</button>
+        <button class="manual-star-btn" onclick="addManualStars(3)">+3 ⭐</button>
+        <button class="manual-star-btn" onclick="addManualStars(5)">+5 ⭐</button>
+        <button class="manual-star-btn" onclick="addManualStars(10)">+10 ⭐</button>
+      </div>
+      <div class="modal-actions">
+        <button class="btn-cancel" onclick="closeModal('manualStarModal')">ปิด</button>
+      </div>
     </div>
   </div>
 
@@ -1357,6 +1393,11 @@ body.ptr-leaving #appWrap{
       dayClasses.forEach(c => {
         const card = document.createElement('div');
         card.className = `class-card ${c.done ? 'completed' : 'pending'}`;
+        card.setAttribute('role','button');
+        card.setAttribute('tabindex','0');
+        card.title = 'แตะเพื่อแก้ไขวิชา';
+        card.onclick = () => editClassModal(c.id);
+        card.onkeydown = (e) => { if(e.key === 'Enter' || e.key === ' ') { e.preventDefault(); editClassModal(c.id); } };
         card.innerHTML = `
           <div>
             <div class="time-badge">⏰ ${c.time}</div>
@@ -1364,8 +1405,8 @@ body.ptr-leaving #appWrap{
             <div class="location">${c.loc} (+${c.reward} ⭐️)</div>
           </div>
           <div class="card-actions">
-            <button class="delete-btn" onclick="removeClass(${c.id})" title="ลบวิชา"><i class="fa-solid fa-trash"></i></button>
-            <button class="check-btn ${c.done ? 'checked' : 'unchecked'}" onclick="toggleDone(${c.id})">
+            <button class="delete-btn" onclick="event.stopPropagation();removeClass(${c.id})" title="ลบวิชา"><i class="fa-solid fa-trash"></i></button>
+            <button class="check-btn ${c.done ? 'checked' : 'unchecked'}" onclick="event.stopPropagation();toggleDone(${c.id})">
               <i class="fa-solid fa-check"></i>
             </button>
           </div>
@@ -1491,6 +1532,86 @@ body.ptr-leaving #appWrap{
     }
 
     
+
+function editClassModal(id){
+  const st=getCurrentStudent();
+  const item=(st.classes||[]).find(c=>c.id===id);
+  if(!item) return;
+  document.getElementById('editClassId').value=String(item.id);
+  document.getElementById('classModalTitle').innerText='✏️ แก้ไขวิชาเรียน';
+  document.getElementById('classSaveBtn').innerText='บันทึกการแก้ไข';
+  document.getElementById('classEditHint').innerText='การแก้ไขนี้มีผลกับรายการที่เลือกเท่านั้น';
+  document.getElementById('inputSubject').value=item.title||'';
+  const m=(item.time||'').match(/(\d{1,2}:\d{2})\s*-\s*(\d{1,2}:\d{2})/);
+  document.getElementById('inputStartTime').value=m?m[1]:'';
+  document.getElementById('inputEndTime').value=m?m[2]:'';
+  document.getElementById('inputLoc').value=item.loc||item.teacher||'';
+  document.getElementById('inputStars').value=item.reward||1;
+  document.querySelectorAll('.repeat-day').forEach(c=>c.checked=false);
+  openModal('classModal');
+}
+
+function resetClassModalForm(){
+  document.getElementById('editClassId').value='';
+  document.getElementById('classModalTitle').innerText='➕ เพิ่มวิชาเรียนใหม่';
+  document.getElementById('classSaveBtn').innerText='บันทึกวิชา';
+  document.getElementById('classEditHint').innerText='แตะการ์ดวิชาเพื่อแก้ไขได้ทุกเมื่อ';
+  document.getElementById('inputSubject').value='';
+  document.getElementById('inputStartTime').value='';
+  document.getElementById('inputEndTime').value='';
+  document.getElementById('inputLoc').value='';
+  document.getElementById('inputStars').value='1';
+  document.querySelectorAll('.repeat-day').forEach(c=>c.checked=false);
+}
+
+function saveClassForm(){
+  const editId=document.getElementById('editClassId').value;
+  if(editId){
+    const st=getCurrentStudent();
+    const item=(st.classes||[]).find(c=>String(c.id)===String(editId));
+    if(!item){ showToast('⚠️ ไม่พบวิชาที่ต้องการแก้ไข'); return; }
+    const title=document.getElementById('inputSubject').value.trim();
+    const startTime=document.getElementById('inputStartTime').value;
+    let endTime=document.getElementById('inputEndTime').value;
+    const loc=document.getElementById('inputLoc').value.trim();
+    const reward=Math.max(1,parseInt(document.getElementById('inputStars').value)||1);
+    if(!title){showToast('⚠️ กรุณากรอกชื่อวิชา');return;}
+    if(!startTime){showToast('⚠️ กรุณาเลือกเวลาเริ่ม');return;}
+    if(!endTime){
+      const p=startTime.split(':').map(Number);
+      const d=new Date(2000,0,1,p[0]||0,(p[1]||0)+60);
+      endTime=`${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;
+    }
+    item.title=title;
+    item.time=`${startTime} - ${endTime} น.`;
+    item.loc=loc||'📍 ห้องเรียน';
+    item.reward=reward;
+    saveAppData();
+    renderCalendar();
+    renderSchedule();
+    closeModal('classModal');
+    resetClassModalForm();
+    showToast('✅ แก้ไขวิชาเรียบร้อยแล้ว');
+    return;
+  }
+  addClass();
+}
+
+function openManualStarModal(e){
+  if(e){e.stopPropagation();}
+  openModal('manualStarModal');
+}
+
+function addManualStars(amount){
+  const st=getCurrentStudent();
+  st.stars=(st.stars||0)+amount;
+  saveAppData();
+  updateStarDisplay();
+  renderStudentManageList();
+  closeModal('manualStarModal');
+  showToast(`⭐ เพิ่มดาว +${amount} ให้น้องนาราแล้ว`);
+}
+
 function addClass(){
  const title=document.getElementById('inputSubject').value.trim();
  const startTime=document.getElementById('inputStartTime').value;
@@ -1521,11 +1642,7 @@ function addClass(){
  renderSchedule();
  closeModal('classModal');
  setTimeout(()=>showToast('✨ เพิ่มตารางเรียนแล้ว'),80);
- document.getElementById('inputSubject').value='';
- document.getElementById('inputStartTime').value='';
- document.getElementById('inputEndTime').value='';
- document.getElementById('inputLoc').value='';
- document.querySelectorAll('.repeat-day').forEach(c=>c.checked=false);
+ resetClassModalForm();
  return true;
 }
 
@@ -1741,6 +1858,9 @@ function confirmDeleteChoice(mode){
     }
 
     function openModal(id) {
+      if (id === 'classModal' && !document.getElementById('editClassId').value) {
+        resetClassModalForm();
+      }
       if (id === 'studentModal' && !document.getElementById('editStudentId').value) {
         document.getElementById('studentModalTitle').innerText = '➕ เพิ่มนักเรียนคนใหม่';
         document.getElementById('editStudentId').value = '';
@@ -1762,6 +1882,9 @@ function confirmDeleteChoice(mode){
       try { document.activeElement && document.activeElement.blur && document.activeElement.blur(); } catch(e) {}
       if (id === 'studentModal') {
         document.getElementById('editStudentId').value = '';
+      }
+      if (id === 'classModal') {
+        resetClassModalForm();
       }
     }
 
