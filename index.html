@@ -2218,15 +2218,17 @@ body.voice-modal-open #voiceFab, body.voice-modal-open #voicePanel{display:none!
     return r;
   }
 
-  // iPhone/Safari บางรุ่นต้องปล่อย recognition ตัวเก่าก่อนเริ่มรอบใหม่
+  // V4: อย่า abort/stop recognition เก่าภายใน click เดียวกับการ start รอบใหม่
+  // Safari/iOS บางรุ่นจะค้างถ้าสั่ง abort() แล้ว start() ทันทีใน gesture เดียวกัน
   let restartGuard=0;
-  function resetRecognitionObject(){
+  function detachOldRecognition(){
     const old=rec;
     rec=null;
     listening=false;
     if(old){
-      try{ old.onresult=null; old.onerror=null; old.onend=null; old.stop(); }catch(e){}
-      try{ old.abort(); }catch(e){}
+      try{ old.onresult=null; old.onerror=null; old.onend=null; }catch(e){}
+      // ปล่อย browser จัดการ lifecycle เดิมเอง ไม่ abort ในจังหวะเริ่มรอบใหม่
+      try{ old.stop(); }catch(e){}
     }
   }
 
@@ -2234,9 +2236,9 @@ body.voice-modal-open #voiceFab, body.voice-modal-open #voicePanel{display:none!
     if(listening || processing) return;
     clearVoiceTimers();
 
-    // สำคัญมากสำหรับการใช้ซ้ำหลังบันทึกวิชา: เคลียร์ session เก่าทุกครั้ง
     restartGuard++;
-    resetRecognitionObject();
+    // เคลียร์เฉพาะ reference/handlers แต่ไม่ abort ใน gesture เดียวกับ start
+    detachOldRecognition();
     sessionId++;
     const mySession=sessionId;
     finalText='';
@@ -2248,17 +2250,23 @@ body.voice-modal-open #voiceFab, body.voice-modal-open #voicePanel{display:none!
     setState('listen','กำลังเปิดไมค์…');
     show('กำลังเปิดไมค์… พูดได้เลย',false);
 
-    // start() ต้องเกิดจาก click เดียวกันโดยตรง
     try{
       const newRec=makeRecognition(mySession);
       rec=newRec;
       newRec.start();
     }catch(e){
-      rec=null;
-      listening=false;
-      console.warn('Voice start failed:',e);
-      setState('idle','ไมค์ยังไม่พร้อม');
-      show('ไมค์ยังไม่พร้อม — แตะไมค์อีกครั้งแล้วพูดได้เลย',false);
+      // ถ้า Safari มอง object แรกว่ายังค้าง ให้สร้าง object ใหม่อีกครั้งทันที
+      try{
+        const retry=makeRecognition(mySession);
+        rec=retry;
+        retry.start();
+      }catch(e2){
+        rec=null;
+        listening=false;
+        console.warn('Voice start failed:',e,e2);
+        setState('idle','ไมค์ยังไม่พร้อม');
+        show('ไมค์ยังไม่พร้อม — แตะไมค์อีกครั้งแล้วพูดได้เลย',false);
+      }
     }
   }
 
@@ -2267,9 +2275,14 @@ body.voice-modal-open #voiceFab, body.voice-modal-open #voicePanel{display:none!
     manuallyStopped=true;
     clearVoiceTimers();
     const myRec=rec;
+    // สำคัญ: ห้ามประมวลผล/เปิด Modal ก่อน SpeechRecognition onend
+    // เพราะ Safari/iOS อาจยังถือ microphone session เดิมอยู่ ทำให้รอบที่ 2 start ไม่ทำงาน
     listening=false;
+    setState('process','กำลังหยุดไมค์…');
     if(myRec){
-      try{ myRec.stop(); }catch(e){ try{myRec.abort();}catch(_e){} }
+      try{ myRec.stop(); }catch(e){
+        try{ myRec.abort(); }catch(_e){}
+      }
     }else{
       finishRecognition();
     }
@@ -2354,11 +2367,13 @@ body.voice-modal-open #voiceFab, body.voice-modal-open #voicePanel{display:none!
     clearVoiceTimers();
     processing=false;
     listening=false;
-    if(rec){
-      try{ rec.abort(); }catch(e){}
-      rec=null;
-    }
+    // หลังบันทึกวิชาให้ตัด session เดิมทันที แต่ไม่ abort object จาก click เดิม
+    const old=rec;
+    rec=null;
     sessionId++;
+    if(old){
+      try{ old.onresult=null; old.onerror=null; old.onend=null; old.stop(); }catch(e){}
+    }
     finalText='';
     interimText='';
     gotFinal=false;
@@ -2393,14 +2408,17 @@ body.voice-modal-open #voiceFab, body.voice-modal-open #voicePanel{display:none!
     if(mySession!==sessionId) return;
     clearVoiceTimers();
     const hasText=!!(finalText||interimText);
-    listening=false;
-    rec=null;
 
-    // iOS มักส่ง aborted/no-speech หลังมีข้อความแล้ว — ให้ใช้ข้อความนั้นต่อ
-    if(hasText && (e.error==='aborted' || e.error==='no-speech')){
-      finishRecognition(mySession);
+    // ไม่เรียก finishRecognition จาก onerror อีกต่อไปเมื่อมีข้อความ
+    // ให้ onend เป็นจุดเดียวที่ปิด microphone session แล้วค่อย parse
+    if(hasText && (e.error==='aborted' || e.error==='no-speech' || e.error==='network')){
+      listening=false;
+      setState('process','กำลังปิดไมค์…');
       return;
     }
+
+    listening=false;
+    rec=null;
     if(e.error==='not-allowed' || e.error==='service-not-allowed'){
       processing=false;
       setState('idle','ต้องอนุญาตไมโครโฟน');
@@ -2409,31 +2427,37 @@ body.voice-modal-open #voiceFab, body.voice-modal-open #voicePanel{display:none!
       processing=false;
       setState('idle','ไม่ได้ยินเสียง');
       show('ไม่ได้ยินเสียง — แตะไมค์แล้วพูดใหม่',false);
-    }else if(e.error==='network'){
-      processing=false;
-      setState('idle','เชื่อมต่อไม่ได้');
-      show('ตรวจสอบอินเทอร์เน็ต แล้วลองใหม่',false);
     }else{
-      processing=false;
-      setState('idle','พร้อมรับคำสั่ง');
-      if(!hasText) show('แตะไมค์แล้วลองพูดใหม่',false);
-      else finishRecognition(mySession);
+      // ให้ onend จัดการกรณีที่ browser ส่ง error แล้วตามด้วย end
+      setState('process','กำลังปิดไมค์…');
+      if(!hasText){
+        setTimeout(()=>{
+          if(mySession!==sessionId || processing || listening) return;
+          if(!rec) {
+            processing=false;
+            setState('idle','พร้อมรับคำสั่ง');
+            show('ไมค์ยังไม่พร้อม — แตะไมค์อีกครั้งแล้วลองใหม่',false);
+          }
+        },900);
+      }
     }
   }
 
   function onEnd(mySession){
     if(mySession!==sessionId) return;
     listening=false;
+    const endedRec=rec;
     rec=null;
     if(processing) return;
     clearVoiceTimers();
 
-    // ให้ final result จาก iOS เข้ามาก่อนเล็กน้อย
+    // Safari/iOS: รอให้ engine ปล่อย microphone session จริงก่อน parse/open modal
+    // หลัง onend แล้วเท่านั้นจึงถือว่ารอบเสียงจบสมบูรณ์
     endTimer=setTimeout(()=>{
       endTimer=null;
       if(mySession!==sessionId || processing) return;
       finishRecognition(mySession);
-    }, gotFinal ? 220 : 550);
+    }, gotFinal ? 120 : 250);
   }
 
 })();
