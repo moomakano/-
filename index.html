@@ -736,6 +736,22 @@
       cursor: pointer;
     }
 
+    /* ===== Smooth Delete Choice ===== */
+    .delete-choice-modal{display:none;position:fixed;inset:0;background:rgba(0,0,0,.42);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);z-index:1000001;align-items:flex-end;justify-content:center;padding:16px;padding-bottom:calc(16px + env(safe-area-inset-bottom));}
+    .delete-choice-modal.active{display:flex;animation:deleteFadeIn .22s ease-out}
+    .delete-choice-sheet{width:100%;max-width:500px;background:rgba(255,255,255,.96);border-radius:24px;padding:18px;box-shadow:0 16px 50px rgba(0,0,0,.24);transform:translateY(18px);animation:deleteSheetIn .28s cubic-bezier(.2,.9,.25,1.15) forwards;}
+    .delete-choice-title{font-size:1.12rem;font-weight:700;color:#ad1457;text-align:center;margin-bottom:5px}
+    .delete-choice-subtitle{font-size:.82rem;color:#888;text-align:center;margin-bottom:14px}
+    .delete-choice-btn{width:100%;border:0;border-radius:16px;padding:13px 14px;margin-top:8px;font-family:inherit;font-size:.95rem;font-weight:600;background:#fff0f5;color:#c2185b;box-shadow:0 2px 8px rgba(0,0,0,.05);transition:transform .15s ease,background .15s ease;}
+    .delete-choice-btn:active{transform:scale(.98);background:#fce4ec}
+    .delete-choice-btn.danger{background:#ffebee;color:#d32f2f}
+    .delete-choice-cancel{width:100%;border:0;border-radius:16px;padding:13px;margin-top:10px;font-family:inherit;font-size:.95rem;font-weight:600;background:#f1f1f1;color:#666}
+    body.dark .delete-choice-sheet{background:rgba(24,28,36,.97)}
+    body.dark .delete-choice-subtitle{color:#aaa}
+    body.dark .delete-choice-cancel{background:#2b3039;color:#eee}
+    @keyframes deleteFadeIn{from{opacity:0}to{opacity:1}}
+    @keyframes deleteSheetIn{from{opacity:0;transform:translateY(22px) scale(.98)}to{opacity:1;transform:translateY(0) scale(1)}}
+
     /* Toast Notification */
     .toast {
       position: fixed;
@@ -1133,6 +1149,18 @@ body.ptr-leaving #appWrap{
     </div>
   </div>
 
+  <!-- Smooth Delete Choice -->
+  <div class="delete-choice-modal" id="deleteChoiceModal" onclick="if(event.target===this) closeDeleteChoice()">
+    <div class="delete-choice-sheet">
+      <div class="delete-choice-title">🗑️ ลบตารางประจำ</div>
+      <div class="delete-choice-subtitle" id="deleteChoiceSubtitle">เลือกวิธีลบที่ต้องการ</div>
+      <button class="delete-choice-btn" onclick="confirmDeleteChoice('today')">ลบเฉพาะวันนี้</button>
+      <button class="delete-choice-btn" onclick="confirmDeleteChoice('all')">ลบทั้งตาราง</button>
+      <button class="delete-choice-btn danger" onclick="confirmDeleteChoice('future')">ลบตั้งแต่วันนี้เป็นต้นไป</button>
+      <button class="delete-choice-cancel" onclick="closeDeleteChoice()">ยกเลิก</button>
+    </div>
+  </div>
+
   <!-- Toast Notification -->
   <div class="toast" id="toast">
     <span id="toastMsg"></span>
@@ -1523,20 +1551,47 @@ function removeClass(id) {
   if (!item.repeatId) {
     if (!confirm('ลบวิชานี้ใช่หรือไม่?')) return;
     st.classes = st.classes.filter(c => c.id !== id);
-  } else {
-    const mode = prompt('ลบตารางประจำ\n1=ลบเฉพาะวันนี้\n2=ลบทั้งตาราง\n3=ลบตั้งแต่วันนี้เป็นต้นไป');
-    if (mode === '1') {
-      st.classes = st.classes.filter(c => c.id !== id);
-    } else if (mode === '2') {
-      st.classes = st.classes.filter(c => c.repeatId !== item.repeatId);
-    } else if (mode === '3') {
-      st.classes = st.classes.filter(c => !(c.repeatId === item.repeatId && c.dateStr >= item.dateStr));
-    } else {
-      return;
-    }
+    saveAppData();
+    renderCalendar();
+    renderSchedule();
+    showToast('🗑️ ลบเรียบร้อย');
+    return;
+  }
+
+  // ใช้เมนูปุ่มแทน prompt เพื่อไม่ต้องพิมพ์ตัวเลขบน iPhone
+  window._deleteChoice = { id, repeatId: item.repeatId, dateStr: item.dateStr };
+  const modal = document.getElementById('deleteChoiceModal');
+  const sub = document.getElementById('deleteChoiceSubtitle');
+  if (sub) sub.textContent = `เลือกวิธีลบ “${item.title || 'วิชานี้'}”`;
+  if (modal) {
+    modal.classList.add('active');
+    document.body.style.overflow = 'hidden';
+  }
+}
+
+function closeDeleteChoice(){
+  const modal = document.getElementById('deleteChoiceModal');
+  if (modal) modal.classList.remove('active');
+  document.body.style.overflow = '';
+  window._deleteChoice = null;
+}
+
+function confirmDeleteChoice(mode){
+  const choice = window._deleteChoice;
+  if (!choice) return;
+  const st = getCurrentStudent();
+  if (!st || !st.classes) { closeDeleteChoice(); return; }
+
+  if (mode === 'today') {
+    st.classes = st.classes.filter(c => c.id !== choice.id);
+  } else if (mode === 'all') {
+    st.classes = st.classes.filter(c => c.repeatId !== choice.repeatId);
+  } else if (mode === 'future') {
+    st.classes = st.classes.filter(c => !(c.repeatId === choice.repeatId && c.dateStr >= choice.dateStr));
   }
 
   saveAppData();
+  closeDeleteChoice();
   renderCalendar();
   renderSchedule();
   showToast('🗑️ ลบเรียบร้อย');
