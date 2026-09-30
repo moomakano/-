@@ -1943,6 +1943,8 @@ body.voice-modal-open #voiceFab, body.voice-modal-open #voicePanel{display:none!
 
   let rec=null, state='idle', finalText='', interimText='', session=0, endWait=null;
   let parserBusy=false;
+  let micPermissionReady=false;
+  let permissionBusy=false;
 
   function ui(s,msg){state=s;status.textContent=msg;fab.classList.toggle('listening',s==='listen');fab.classList.toggle('processing',s==='process');fab.innerHTML=s==='listen'?'<i class="fa-solid fa-microphone"></i>':s==='process'?'<i class="fa-solid fa-spinner fa-spin"></i>':'<i class="fa-solid fa-microphone"></i>';}
   function clearWait(){if(endWait){clearTimeout(endWait);endWait=null}}
@@ -2032,15 +2034,47 @@ body.voice-modal-open #voiceFab, body.voice-modal-open #voicePanel{display:none!
     ui('idle','ตรวจข้อมูลแล้ว กด “บันทึกวิชา” ได้เลย');return true;
   }
 
-  function start(){
-    if(state==='listen'||state==='process'||parserBusy)return;
-    clearWait(); session++; finalText='';interimText='';panel.classList.add('show');
-    const r=build(); ui('listen','กำลังเปิดไมค์…');
-    // Persistent object; only start after previous onend has completed.
-    try{r.start()}catch(e){
-      // InvalidStateError can occur if Safari has not released the previous run yet.
-      setTimeout(()=>{if(state!=='listen'||finalText||interimText)return;try{r.start()}catch(_){ui('idle','ไมค์ยังไม่พร้อม');show('แตะไมค์อีกครั้งแล้วลองใหม่',false)}},350);
+  async function ensureMicPermission(){
+    if(micPermissionReady) return true;
+    if(permissionBusy) return false;
+    if(!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia){
+      // Older Safari/iOS: let SpeechRecognition itself request permission.
+      micPermissionReady=true; return true;
     }
+    permissionBusy=true;
+    try{
+      const stream=await navigator.mediaDevices.getUserMedia({audio:{echoCancellation:true,noiseSuppression:true,autoGainControl:true}});
+      // Important: use getUserMedia only to establish the app's microphone permission.
+      // Release the temporary capture before SpeechRecognition starts so the two audio
+      // sessions do not compete for the microphone.
+      try{stream.getTracks().forEach(t=>t.stop())}catch(e){}
+      micPermissionReady=true;
+      return true;
+    }catch(e){
+      micPermissionReady=false;
+      ui('idle','ต้องอนุญาตไมโครโฟน');
+      show('กรุณาอนุญาตไมโครโฟนในการตั้งค่าของ Safari แล้วกดไมค์อีกครั้ง',false);
+      return false;
+    }finally{permissionBusy=false;}
+  }
+
+  async function start(){
+    if(state==='listen'||state==='process'||parserBusy||permissionBusy)return;
+    clearWait(); session++; finalText='';interimText='';panel.classList.add('show');
+    ui('listen','กำลังเตรียมไมโครโฟน…');
+    const ok=await ensureMicPermission();
+    if(!ok || session<1) return;
+    const r=build(); ui('listen','กำลังเปิดไมค์…');
+    // Re-arm the same recognizer only after permission has been confirmed.
+    setTimeout(()=>{
+      if(state!=='listen'||finalText||interimText)return;
+      try{r.start()}catch(e){
+        setTimeout(()=>{
+          if(state!=='listen'||finalText||interimText)return;
+          try{r.start()}catch(_){ui('idle','ไมค์ยังไม่พร้อม');show('แตะไมค์อีกครั้งแล้วลองใหม่',false)}
+        },500);
+      }
+    },80);
   }
   function stop(){if(state!=='listen'||!rec)return;ui('process','กำลังหยุดไมค์…');try{rec.stop()}catch(e){try{rec.abort()}catch(_){}}}
   fab.onclick=()=>state==='listen'?stop():state==='process'?null:start();
