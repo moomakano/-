@@ -1951,11 +1951,18 @@ body.voice-modal-open #voiceFab, body.voice-modal-open #voicePanel{display:none!
     finalText='';
     interimText='';
     processing=false;
-    listening=false;
-    rec=null;
-    panel.classList.remove('show');
+    voiceArmed=true;
+    panel.classList.add('show');
     setState('idle','พร้อมรับคำสั่ง');
-    show('แตะไมค์แล้วพูดได้เลย…',true);
+    show('พร้อมรับคำสั่งครั้งต่อไป…',true);
+    // If Safari has ended the continuous session, re-arm it without requiring a new permission prompt.
+    if(!listening){
+      clearTimeout(restartTimer);
+      restartTimer=setTimeout(()=>{
+        if(!voiceArmed || listening) return;
+        try{ rec=makeRecognition(); listening=true; rec.start(); }catch(e){ listening=false; rec=null; }
+      },350);
+    }
   };
 
   fab.onclick=()=>{
@@ -1971,6 +1978,8 @@ body.voice-modal-open #voiceFab, body.voice-modal-open #voicePanel{display:none!
   let processing=false;
   let finalText='';
   let interimText='';
+  let voiceArmed=false;
+  let restartTimer=null;
 
   function setState(state,msg){
     status.textContent=msg;
@@ -2200,7 +2209,7 @@ body.voice-modal-open #voiceFab, body.voice-modal-open #voicePanel{display:none!
     const r=new SR();
     r.lang='th-TH';
     r.interimResults=true;
-    r.continuous=false;
+    r.continuous=true;
     r.maxAlternatives=1;
     r.onstart=()=>{
       listening=true;
@@ -2220,6 +2229,7 @@ body.voice-modal-open #voiceFab, body.voice-modal-open #voicePanel{display:none!
     panel.classList.add('show');
     show('กำลังฟัง… พูดชื่อวิชา วัน เวลา และครูได้เลย',false);
     setState('listen','กำลังฟัง…');
+    voiceArmed=true;
     listening=true;
     rec=makeRecognition();
     try{ rec.start(); }
@@ -2253,20 +2263,27 @@ body.voice-modal-open #voiceFab, body.voice-modal-open #voicePanel{display:none!
     finalText='';
     interimText='';
     processing=false;
-    listening=false;
-    rec=null;
-    panel.classList.remove('show');
+    voiceArmed=true;
+    panel.classList.add('show');
     setState('idle','พร้อมรับคำสั่ง');
-    show('แตะไมค์แล้วพูดได้เลย…',true);
+    show('พร้อมรับคำสั่งครั้งต่อไป…',true);
+    // If Safari has ended the continuous session, re-arm it without requiring a new permission prompt.
+    if(!listening){
+      clearTimeout(restartTimer);
+      restartTimer=setTimeout(()=>{
+        if(!voiceArmed || listening) return;
+        try{ rec=makeRecognition(); listening=true; rec.start(); }catch(e){ listening=false; rec=null; }
+      },350);
+    }
   };
 
   fab.onclick=()=>{
-    if(listening && rec){ try{rec.stop();}catch(e){} return; }
+    if(listening && rec){ voiceArmed=false; try{rec.stop();}catch(e){} return; }
     startListening();
   };
 
   document.getElementById('voiceStop').onclick=()=>{
-    if(listening && rec){ try{rec.stop();}catch(e){} }
+    if(listening && rec){ voiceArmed=false; try{rec.stop();}catch(e){} }
     else closePanel();
   };
   document.getElementById('voiceClear').onclick=()=>{
@@ -2276,7 +2293,7 @@ body.voice-modal-open #voiceFab, body.voice-modal-open #voicePanel{display:none!
     setState('idle','พร้อมรับคำสั่ง');
   };
   document.getElementById('voiceClose').onclick=()=>{
-    if(listening && rec){try{rec.stop();}catch(e){}}
+    if(listening && rec){voiceArmed=false;try{rec.stop();}catch(e){}}
     closePanel();
   };
 
@@ -2309,6 +2326,24 @@ body.voice-modal-open #voiceFab, body.voice-modal-open #voicePanel{display:none!
 
   function onEnd(){
     listening=false;
+    // Keep the same microphone session alive after a result. Safari PWA is
+    // much more reliable when the Web Speech session is not torn down between commands.
+    if(voiceArmed){
+      if(!processing && (finalText||interimText)) finishRecognition();
+      clearTimeout(restartTimer);
+      restartTimer=setTimeout(()=>{
+        if(!voiceArmed || listening) return;
+        try{
+          rec=makeRecognition();
+          listening=true;
+          rec.start();
+        }catch(e){
+          listening=false;
+          rec=null;
+        }
+      },450);
+      return;
+    }
     rec=null;
     if(!processing) finishRecognition();
   }
