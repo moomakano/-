@@ -1672,8 +1672,6 @@ function removeClass(id) {
       modal.style.display = '';
       modal.style.zIndex = '';
       document.body.classList.remove('voice-modal-open');
-      // แจ้ง Voice Engine ว่า Modal ปิดแล้ว เพื่อให้รอบถัดไปเริ่มไมค์ใหม่ได้สะอาด
-      try { window.dispatchEvent(new CustomEvent('voice-modal-closed')); } catch(e) {}
       // หยุด focus/scroll lock จาก Voice ถ้ามี
       try { document.activeElement && document.activeElement.blur && document.activeElement.blur(); } catch(e) {}
       if (id === 'studentModal') {
@@ -1948,7 +1946,19 @@ body.voice-modal-open #voiceFab, body.voice-modal-open #voicePanel{display:none!
   const set=(id,v)=>{const el=document.getElementById(id);if(el)el.value=v;};
 
   if(!SR){
-    fab.onclick=()=>{
+    // Reset only the JS state after saving. Do NOT touch SpeechRecognition permission/session here.
+  window.__resetVoiceAfterSave=function(){
+    finalText='';
+    interimText='';
+    processing=false;
+    listening=false;
+    rec=null;
+    panel.classList.remove('show');
+    setState('idle','พร้อมรับคำสั่ง');
+    show('แตะไมค์แล้วพูดได้เลย…',true);
+  };
+
+  fab.onclick=()=>{
       panel.classList.add('show');
       status.textContent='เบราว์เซอร์ไม่รองรับ';
       show('ลองเปิดด้วย Safari หรือ Chrome และอนุญาตไมโครโฟน',false);
@@ -2186,271 +2196,121 @@ body.voice-modal-open #voiceFab, body.voice-modal-open #voicePanel{display:none!
     return true;
   }
 
-  // ===== Voice Engine V2: Easy + Stable =====
-  // หลักการ: 1 tap = 1 session, แสดง interim ทันที, final แล้วประมวลผลครั้งเดียว
-  let endTimer=null;
-  let finalizeTimer=null;
-  let manuallyStopped=false;
-  let gotFinal=false;
-  let sessionId=0;
-
-  function clearVoiceTimers(){
-    if(endTimer){ clearTimeout(endTimer); endTimer=null; }
-    if(finalizeTimer){ clearTimeout(finalizeTimer); finalizeTimer=null; }
-  }
-
-  function makeRecognition(mySession){
+  function makeRecognition(){
     const r=new SR();
     r.lang='th-TH';
     r.interimResults=true;
     r.continuous=false;
     r.maxAlternatives=1;
     r.onstart=()=>{
-      if(mySession!==sessionId) return;
       listening=true;
-      manuallyStopped=false;
       setState('listen','กำลังฟัง…');
-      show('กำลังฟัง… พูดได้เลย',false);
     };
-    r.onresult=(e)=>onResult(e,mySession);
-    r.onerror=(e)=>onError(e,mySession);
-    r.onend=()=>onEnd(mySession);
+    r.onresult=onResult;
+    r.onerror=onError;
+    r.onend=onEnd;
     return r;
   }
 
-  // V4: อย่า abort/stop recognition เก่าภายใน click เดียวกับการ start รอบใหม่
-  // Safari/iOS บางรุ่นจะค้างถ้าสั่ง abort() แล้ว start() ทันทีใน gesture เดียวกัน
-  let restartGuard=0;
-  function detachOldRecognition(){
-    const old=rec;
-    rec=null;
-    listening=false;
-    if(old){
-      try{ old.onresult=null; old.onerror=null; old.onend=null; }catch(e){}
-      // สำคัญ: อย่า stop object เก่าที่จบแล้วใน gesture ของรอบใหม่
-      // Safari/iOS บางรุ่นจะถือ audio session ค้างถ้ามี stop ซ้ำ
-    }
-  }
-
   function startListening(){
-    if(listening || processing) return;
-    clearVoiceTimers();
-
-    restartGuard++;
-    // เคลียร์เฉพาะ reference/handlers แต่ไม่ abort ใน gesture เดียวกับ start
-    detachOldRecognition();
-    sessionId++;
-    const mySession=sessionId;
+    if(listening) return;
     finalText='';
     interimText='';
-    gotFinal=false;
-    manuallyStopped=false;
     processing=false;
     panel.classList.add('show');
-    setState('listen','กำลังเปิดไมค์…');
-    show('กำลังเปิดไมค์… พูดได้เลย',false);
-
-    // Safari PWA ต้องมีช่วงว่างหลัง onend/ปิด modal ก่อนเปิด audio session ใหม่
-    setTimeout(()=>{
-      if(mySession!==sessionId || !listening) return;
-      try{
-        const newRec=makeRecognition(mySession);
-        rec=newRec;
-        newRec.start();
-      }catch(e){
-        rec=null;
-        listening=false;
-        console.warn('Voice start failed:',e);
-        setState('idle','ไมค์ยังไม่พร้อม');
-        show('ไมค์ยังไม่พร้อม — แตะไมค์อีกครั้งแล้วพูดได้เลย',false);
-      }
-    },650)
-  }
-
-  function stopListening(){
-    if(!listening && !rec) return;
-    manuallyStopped=true;
-    clearVoiceTimers();
-    const myRec=rec;
-    // สำคัญ: ห้ามประมวลผล/เปิด Modal ก่อน SpeechRecognition onend
-    // เพราะ Safari/iOS อาจยังถือ microphone session เดิมอยู่ ทำให้รอบที่ 2 start ไม่ทำงาน
-    listening=false;
-    setState('process','กำลังหยุดไมค์…');
-    if(myRec){
-      try{ myRec.stop(); }catch(e){
-        try{ myRec.abort(); }catch(_e){}
-      }
-    }else{
-      finishRecognition();
+    show('กำลังฟัง… พูดชื่อวิชา วัน เวลา และครูได้เลย',false);
+    setState('listen','กำลังฟัง…');
+    listening=true;
+    rec=makeRecognition();
+    try{ rec.start(); }
+    catch(e){
+      listening=false;
+      rec=null;
+      setState('idle','พร้อมรับคำสั่ง');
+      show('ลองกดไมค์อีกครั้ง',false);
     }
   }
 
-  function finishRecognition(mySession=sessionId){
-    if(mySession!==sessionId || processing) return;
-    clearVoiceTimers();
-    const spoken=(finalText||interimText||'').replace(/\s+/g,' ').trim();
+  function finishRecognition(){
     listening=false;
-    rec=null;
+    const spoken=(finalText||interimText||'').trim();
     if(!spoken){
       processing=false;
       setState('idle','พร้อมรับคำสั่ง');
-      show('ยังไม่ได้ยินข้อความ — แตะไมค์แล้วลองพูดใหม่',false);
+      show('ยังไม่ได้ยินข้อความ ลองกดไมค์แล้วพูดอีกครั้ง',false);
       return;
     }
+    if(processing) return;
     processing=true;
     setState('process','กำลังประมวลผล…');
     show(spoken,false);
-    // ให้ iOS วาดข้อความก่อน แล้วค่อย parse เพียงครั้งเดียว
-    finalizeTimer=setTimeout(()=>{
-      finalizeTimer=null;
-      if(mySession!==sessionId) return;
-      try{
-        const ok=parseAndFill(spoken);
-        if(!ok){
-          processing=false;
-          setState('idle','พร้อมรับคำสั่ง');
-          show('อ่านคำสั่งไม่สำเร็จ ลองพูดใหม่',false);
-        }
-      }catch(err){
-        console.error('Voice parse error:',err);
-        processing=false;
-        setState('idle','พร้อมรับคำสั่ง');
-        show('เกิดข้อผิดพลาด ลองกดไมค์อีกครั้ง',false);
-      }
-    },80);
+    // ประมวลผลจากข้อความสุดท้ายเพียงครั้งเดียว ป้องกัน iOS onresult/onend แข่งกัน
+    requestAnimationFrame(()=>parseAndFill(spoken));
   }
 
+  // Reset only the JS state after saving. Do NOT touch SpeechRecognition permission/session here.
+  window.__resetVoiceAfterSave=function(){
+    finalText='';
+    interimText='';
+    processing=false;
+    listening=false;
+    rec=null;
+    panel.classList.remove('show');
+    setState('idle','พร้อมรับคำสั่ง');
+    show('แตะไมค์แล้วพูดได้เลย…',true);
+  };
+
   fab.onclick=()=>{
-    if(listening){ stopListening(); return; }
-    if(processing) return;
+    if(listening && rec){ try{rec.stop();}catch(e){} return; }
     startListening();
   };
 
-  const stopBtn=document.getElementById('voiceStop');
-  if(stopBtn) stopBtn.onclick=()=>{
-    if(listening) stopListening();
+  document.getElementById('voiceStop').onclick=()=>{
+    if(listening && rec){ try{rec.stop();}catch(e){} }
     else closePanel();
   };
-
-  const clearBtn=document.getElementById('voiceClear');
-  if(clearBtn) clearBtn.onclick=()=>{
-    sessionId++;
-    if(rec){ try{rec.abort();}catch(e){} }
-    rec=null;
-    listening=false;
-    processing=false;
-    clearVoiceTimers();
-    finalText='';
-    interimText='';
-    gotFinal=false;
-    setState('idle','พร้อมรับคำสั่ง');
+  document.getElementById('voiceClear').onclick=()=>{
+    finalText='';interimText='';processing=false;
     show('แตะไมค์แล้วพูดได้เลย…',true);
+    status.textContent='พร้อมรับคำสั่ง';
+    setState('idle','พร้อมรับคำสั่ง');
   };
-
-  const closeBtn=document.getElementById('voiceClose');
-  if(closeBtn) closeBtn.onclick=()=>{
-    sessionId++;
-    if(rec){ try{rec.abort();}catch(e){} }
-    rec=null;
-    listening=false;
-    processing=false;
-    clearVoiceTimers();
+  document.getElementById('voiceClose').onclick=()=>{
+    if(listening && rec){try{rec.stop();}catch(e){}}
     closePanel();
-    setState('idle','พร้อมรับคำสั่ง');
   };
 
-  // หลังบันทึก/ยกเลิก Modal ให้คืน Voice Engine สู่สถานะพร้อมใช้งาน
-  window.addEventListener('voice-modal-closed',()=>{
-    clearVoiceTimers();
-    processing=false;
-    listening=false;
-    // หลังบันทึกวิชา: ตัด session เดิมและปล่อย object เก่าให้ Safari จัดการเอง
-    rec=null;
-    sessionId++;
-    finalText='';
+  function onResult(e){
     interimText='';
-    gotFinal=false;
-    setState('idle','พร้อมรับคำสั่ง');
-    show('แตะไมค์แล้วพูดได้เลย…',true);
-  });
-
-  function onResult(e,mySession){
-    if(mySession!==sessionId) return;
-    let finals=[];
-    let interims=[];
     for(let i=e.resultIndex;i<e.results.length;i++){
-      const t=(e.results[i][0]?.transcript||'').trim();
-      if(!t) continue;
-      if(e.results[i].isFinal){
-        finals.push(t);
-        gotFinal=true;
-      }else{
-        interims.push(t);
-      }
+      const t=(e.results[i][0].transcript||'').trim();
+      if(e.results[i].isFinal) finalText+=(finalText?' ':'')+t;
+      else interimText+=(interimText?' ':'')+t;
     }
-    if(finals.length) finalText=(finalText+' '+finals.join(' ')).trim();
-    interimText=interims.join(' ').trim();
     const live=(finalText||interimText).trim();
-    if(live){
-      show(live,false);
-      status.textContent=gotFinal?'รับข้อความแล้ว':'กำลังฟัง…';
-    }
+    if(live) show(live,false);
   }
 
-  function onError(e,mySession){
-    if(mySession!==sessionId) return;
-    clearVoiceTimers();
-    const hasText=!!(finalText||interimText);
-
-    // ไม่เรียก finishRecognition จาก onerror อีกต่อไปเมื่อมีข้อความ
-    // ให้ onend เป็นจุดเดียวที่ปิด microphone session แล้วค่อย parse
-    if(hasText && (e.error==='aborted' || e.error==='no-speech' || e.error==='network')){
-      listening=false;
-      setState('process','กำลังปิดไมค์…');
-      return;
-    }
-
+  function onError(e){
+    // iOS บางรุ่นส่ง aborted ก่อน onend แม้จะมีข้อความแล้ว ให้ onend ประมวลผลต่อ
+    if(e.error==='aborted' && (finalText||interimText)) return;
     listening=false;
-    rec=null;
-    if(e.error==='not-allowed' || e.error==='service-not-allowed'){
-      processing=false;
-      setState('idle','ต้องอนุญาตไมโครโฟน');
-      show('กรุณาอนุญาตไมโครโฟน แล้วกดไมค์อีกครั้ง',false);
+    if(e.error==='not-allowed'){
+      setState('idle','ไม่สามารถใช้ไมโครโฟนได้');
+      show('กรุณาอนุญาตการใช้ไมโครโฟนในการตั้งค่า Safari',false);
     }else if(e.error==='no-speech'){
-      processing=false;
       setState('idle','ไม่ได้ยินเสียง');
-      show('ไม่ได้ยินเสียง — แตะไมค์แล้วพูดใหม่',false);
+      show('ไม่ได้ยินเสียง ลองพูดอีกครั้ง',false);
     }else{
-      // ให้ onend จัดการกรณีที่ browser ส่ง error แล้วตามด้วย end
-      setState('process','กำลังปิดไมค์…');
-      if(!hasText){
-        setTimeout(()=>{
-          if(mySession!==sessionId || processing || listening) return;
-          if(!rec) {
-            processing=false;
-            setState('idle','พร้อมรับคำสั่ง');
-            show('ไมค์ยังไม่พร้อม — แตะไมค์อีกครั้งแล้วลองใหม่',false);
-          }
-        },900);
-      }
+      setState('idle','พร้อมรับคำสั่ง');
+      if(!finalText&&!interimText) show('ลองกดไมค์แล้วพูดใหม่',false);
     }
   }
 
-  function onEnd(mySession){
-    if(mySession!==sessionId) return;
+  function onEnd(){
     listening=false;
-    const endedRec=rec;
     rec=null;
-    if(processing) return;
-    clearVoiceTimers();
-
-    // Safari/iOS: รอให้ engine ปล่อย microphone session จริงก่อน parse/open modal
-    // หลัง onend แล้วเท่านั้นจึงถือว่ารอบเสียงจบสมบูรณ์
-    endTimer=setTimeout(()=>{
-      endTimer=null;
-      if(mySession!==sessionId || processing) return;
-      finishRecognition(mySession);
-    }, gotFinal ? 120 : 250);
+    if(!processing) finishRecognition();
   }
 
 })();
