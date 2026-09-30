@@ -1934,155 +1934,525 @@ body.voice-modal-open #voiceFab, body.voice-modal-open #voicePanel{display:none!
 <script>
 (function(){
   const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
-  const fab=document.getElementById('voiceFab'), panel=document.getElementById('voicePanel');
-  const status=document.getElementById('voiceStatus'), textBox=document.getElementById('voiceText');
+  const fab=document.getElementById('voiceFab');
+  const panel=document.getElementById('voicePanel');
+  const status=document.getElementById('voiceStatus');
+  const textBox=document.getElementById('voiceText');
   if(!fab||!panel||!status||!textBox) return;
-  const show=(msg,empty=false)=>{textBox.textContent=msg;textBox.classList.toggle('empty',empty)};
-  const set=(id,v)=>{const e=document.getElementById(id);if(e)e.value=v};
-  if(!SR){fab.onclick=()=>{panel.classList.add('show');status.textContent='เบราว์เซอร์ไม่รองรับ';show('กรุณาใช้ Safari หรือ Chrome และอนุญาตไมโครโฟน',false)};return;}
 
-  let rec=null, state='idle', finalText='', interimText='', session=0, endWait=null;
-  let parserBusy=false;
-  let micPermissionReady=false;
-  let permissionBusy=false;
+  const closePanel=()=>panel.classList.remove('show');
+  const show=(msg,empty=false)=>{
+    textBox.textContent=msg;
+    textBox.classList.toggle('empty',empty);
+  };
+  const set=(id,v)=>{const el=document.getElementById(id);if(el)el.value=v;};
 
-  function ui(s,msg){state=s;status.textContent=msg;fab.classList.toggle('listening',s==='listen');fab.classList.toggle('processing',s==='process');fab.innerHTML=s==='listen'?'<i class="fa-solid fa-microphone"></i>':s==='process'?'<i class="fa-solid fa-spinner fa-spin"></i>':'<i class="fa-solid fa-microphone"></i>';}
-  function clearWait(){if(endWait){clearTimeout(endWait);endWait=null}}
+  if(!SR){
+    fab.onclick=()=>{
+      panel.classList.add('show');
+      status.textContent='เบราว์เซอร์ไม่รองรับ';
+      show('ลองเปิดด้วย Safari หรือ Chrome และอนุญาตไมโครโฟน',false);
+    };
+    return;
+  }
 
-  // IMPORTANT: keep ONE SpeechRecognition instance for the life of the page.
-  // Safari/iOS can become unreliable when several recognition objects are created.
-  function build(){
-    if(rec) return rec;
-    rec=new SR();
-    rec.lang='th-TH'; rec.interimResults=true; rec.continuous=false; rec.maxAlternatives=1;
-    rec.onstart=()=>{
-      ui('listen','กำลังฟัง…'); show('กำลังฟัง… พูดได้เลย',false);
-    };
-    rec.onresult=e=>{
-      let f=[],i=[];
-      for(let n=e.resultIndex;n<e.results.length;n++){
-        const t=(e.results[n][0]?.transcript||'').trim(); if(!t) continue;
-        if(e.results[n].isFinal) f.push(t); else i.push(t);
-      }
-      if(f.length) finalText=(finalText+' '+f.join(' ')).trim();
-      interimText=i.join(' ').trim();
-      const live=(finalText||interimText).trim(); if(live){show(live,false);status.textContent=finalText?'รับข้อความแล้ว':'กำลังฟัง…'}
-    };
-    rec.onerror=e=>{
-      console.log('voice error',e.error);
-      // Always wait for onend. Do not create/abort another recognizer here.
-      if(e.error==='not-allowed'||e.error==='service-not-allowed'){
-        ui('idle','ต้องอนุญาตไมโครโฟน');show('กรุณาอนุญาตไมโครโฟน แล้วกดไมค์อีกครั้ง',false);
-      }else if(e.error==='no-speech'){
-        ui('idle','ไม่ได้ยินเสียง');show('ไม่ได้ยินเสียง — แตะไมค์แล้วพูดใหม่',false);
-      }else{
-        ui('process','กำลังปิดไมค์…');
-      }
-    };
-    rec.onend=()=>{
-      if(state!=='listen' && state!=='process') return;
-      ui('process','กำลังปิดไมค์…');
-      clearWait();
-      // Give Safari a short, real event-loop turn to release the audio session.
-      endWait=setTimeout(()=>{
-        endWait=null;
-        const spoken=(finalText||interimText).replace(/\s+/g,' ').trim();
-        if(!spoken){ui('idle','พร้อมรับคำสั่ง');show('ยังไม่ได้ยินข้อความ — แตะไมค์แล้วลองพูดใหม่',false);return;}
-        parserBusy=true; ui('process','กำลังประมวลผล…'); show(spoken,false);
-        setTimeout(()=>{
-          parserBusy=false;
-          if(session===0) return;
-          if(!parseAndFill(spoken)){ui('idle','พร้อมรับคำสั่ง');show('อ่านคำสั่งไม่สำเร็จ ลองพูดใหม่',false)}
-        },80);
-      },180);
-    };
-    return rec;
+  let rec=null;
+  let listening=false;
+  let processing=false;
+  let finalText='';
+  let interimText='';
+
+  function setState(state,msg){
+    status.textContent=msg;
+    fab.classList.toggle('listening',state==='listen');
+    fab.classList.toggle('processing',state==='process');
+    fab.innerHTML=state==='listen'
+      ? '<i class="fa-solid fa-microphone"></i>'
+      : state==='process'
+      ? '<i class="fa-solid fa-spinner fa-spin"></i>'
+      : '<i class="fa-solid fa-microphone"></i>';
   }
 
   function parseAndFill(txt){
-    txt=(txt||'').trim(); if(!txt) return false;
+    txt=(txt||'').trim();
+    if(!txt) return false;
+
     const dayMap={จันทร์:1,อังคาร:2,พุธ:3,'พฤหัสบดี':4,'พฤหัส':4,'พฤ':4,ศุกร์:5,เสาร์:6,อาทิตย์:0};
     const dayKey=Object.keys(dayMap).find(k=>txt.includes(k));
     const subjectMatch=txt.match(/(ภาษาไทย|ภาษาอังกฤษ|อังกฤษ|คณิตศาสตร์|คณิต|วิทยาศาสตร์|วิทย์|เปียโน|ว่ายน้ำ|สังคม|คอมพิวเตอร์|ดนตรี|ศิลปะ)/);
     const teacherMatch=txt.match(/(?:ครู|อาจารย์|อ\.)\s*[ก-๙A-Za-z]+/);
+
+    // ===== Voice Time Parser: ครอบคลุมเวลา 07:00 - 18:00 แบบละเอียด =====
     function parseVoiceTime(text){
-      const thai={'๐':'0','๑':'1','๒':'2','๓':'3','๔':'4','๕':'5','๖':'6','๗':'7','๘':'8','๙':'9'};
-      const t=(text||'').toLowerCase().trim().replace(/[๐-๙]/g,c=>thai[c]);
-      const valid=(h,m=0)=>{h=+h;m=+m;if(!Number.isFinite(h)||!Number.isFinite(m)||m<0||m>59||h<7||h>18||(h===18&&m>0))return null;return[h,m]};
-      if(/เที่ยงครึ่ง/.test(t))return[12,30]; if(/เที่ยง/.test(t))return[12,0];
-      const words={'เจ็ด':7,'แปด':8,'เก้า':9,'สิบ':10,'สิบเอ็ด':11,'หนึ่ง':1,'สอง':2,'สาม':3,'สี่':4,'ห้า':5,'หก':6};
-      for(const w of Object.keys(words).sort((a,b)=>b.length-a.length)){
-        const x=t.match(new RegExp('(?:บ่าย\\s*)?'+w+'\\s*โมง(?:\\s*(ครึ่ง))?'));
-        if(x){let h=words[w];if(/บ่าย/.test(x[0])&&h<12)h+=12;const r=valid(h,x[1]?30:0);if(r)return r;}
+      const raw=(text||'').toLowerCase().trim();
+      if(!raw) return null;
+
+      // แปลงเลขไทยเป็นเลขอารบิก
+      const thaiDigits={'๐':'0','๑':'1','๒':'2','๓':'3','๔':'4','๕':'5','๖':'6','๗':'7','๘':'8','๙':'9'};
+      const t=raw.replace(/[๐-๙]/g,ch=>thaiDigits[ch]);
+
+      const valid=(hh,mm=0)=>{
+        hh=Number(hh); mm=Number(mm);
+        // ระบบนี้ตั้งใจรองรับช่วง 07:00 ถึง 18:00
+        if(!Number.isFinite(hh)||!Number.isFinite(mm)||mm<0||mm>59) return null;
+        if(hh<7 || hh>18) return null;
+        if(hh===18 && mm>0) return null;
+        return [hh,mm];
+      };
+
+      // ===== Thai natural clock phrases (07:00-18:00) =====
+      // รองรับ: 8โมงครึ่ง, 9โมง, 9โมงครึ่ง, ... , เที่ยง, เที่ยงครึ่ง,
+      // บ่ายโมง/บ่ายโมงครึ่ง, บ่ายสองโมง/บ่ายสองโมงครึ่ง, บ่ายสามโมง,
+      // สี่โมง/สี่โมงครึ่ง, ห้าโมง/ห้าโมงครึ่ง, หกโมง/หกโมงครึ่ง
+      const naturalHours = {
+        'เจ็ด':7,'แปด':8,'เก้า':9,'สิบ':10,'สิบเอ็ด':11,
+        'หนึ่ง':1,'สอง':2,'สาม':3,'สี่':4,'ห้า':5,'หก':6
+      };
+      if(/เที่ยงครึ่ง/.test(t)) return [12,30];
+      if(/เที่ยง/.test(t)) return [12,0];
+
+      const thaiNatural = Object.keys(naturalHours).sort((a,b)=>b.length-a.length);
+      for(const hw of thaiNatural){
+        const hv=naturalHours[hw];
+        const re = new RegExp('(?:บ่าย\\s*)?'+hw+'\\s*โมง(?:\\s*(ครึ่ง))?');
+        const hit=t.match(re);
+        if(hit){
+          let hh=hv;
+          const isAfternoon=/บ่าย/.test(hit[0]);
+          if(isAfternoon && hh<12) hh+=12;
+          const mm=hit[1]?30:0;
+          const r=valid(hh,mm);
+          if(r) return r;
+        }
       }
-      let m=t.match(/(?:เวลา|ตอน|ประมาณ|ช่วง)?\s*(\d{1,2})\s*(?::|\.|จุด|นาฬิกา|โมง)\s*(\d{1,2})\s*(?:นาที)?/);if(m){const r=valid(m[1],m[2]);if(r)return r}
-      m=t.match(/(?:เวลา|ตอน|ประมาณ|ช่วง)?\s*(\d{1,2})\s+(\d{2})\s*(?:นาที)?/);if(m){const r=valid(m[1],m[2]);if(r)return r}
-      m=t.match(/(?:เวลา|ตอน|ประมาณ|ช่วง)?\s*(\d{1,2})\s*โมง\s*ครึ่ง/);if(m){let h=+m[1];if(/บ่าย|เย็น/.test(t)&&h<12)h+=12;const r=valid(h,30);if(r)return r}
-      m=t.match(/(?:เวลา|ตอน|ประมาณ|ช่วง)?\s*(\d{1,2})\s*โมง(?:\s*(\d{1,2})\s*(?:นาที)?)?/);if(m){let h=+m[1],mm=m[2]===undefined?0:+m[2];if(/บ่าย|เย็น/.test(t)&&h<12)h+=12;const r=valid(h,mm);if(r)return r}
-      const dw={'หนึ่ง':1,'สอง':2,'สาม':3,'สี่':4,'ห้า':5,'หก':6,'เจ็ด':7,'แปด':8,'เก้า':9,'สิบ':10,'สิบเอ็ด':11,'สิบสอง':12};
-      m=t.match(/บ่าย\s*(หนึ่ง|สอง|สาม|สี่|ห้า|หก|เจ็ด|แปด|เก้า|สิบ|สิบเอ็ด|สิบสอง|\d{1,2})(?:\s*(?:โมง|นาฬิกา))?(?:\s*(\d{1,2})\s*นาที)?/);if(m){let h=/^\d+$/.test(m[1])?+m[1]:dw[m[1]]; if(h===1)h=13;else if(h<12)h+=12;const r=valid(h,m[2]===undefined?0:+m[2]);if(r)return r}
+
+      // 7:15 / 7.15 / 7 จุด 15 / 07 15 / 18:00
+      let m=t.match(/(?:เวลา|ตอน|ประมาณ|ช่วง)?\s*(\d{1,2})\s*(?::|\.|จุด|นาฬิกา|โมง)\s*(\d{1,2})\s*(?:นาที)?/);
+      if(m){
+        const r=valid(m[1],m[2]);
+        if(r) return r;
+      }
+
+      // 7 15 / 07 05 — Speech Recognition บางครั้งตัดเครื่องหมายออก
+      m=t.match(/(?:เวลา|ตอน|ประมาณ|ช่วง)?\s*(\d{1,2})\s+(\d{2})\s*(?:นาที)?/);
+      if(m){
+        const r=valid(m[1],m[2]);
+        if(r) return r;
+      }
+
+      // ตัวเลข + โมงครึ่ง เช่น 9 โมงครึ่ง / 9โมงครึ่ง / 09 โมงครึ่ง
+      m=t.match(/(?:เวลา|ตอน|ประมาณ|ช่วง)?\s*(\d{1,2})\s*โมง\s*ครึ่ง/);
+      if(m){
+        let hh=Number(m[1]);
+        if(/บ่าย|เย็น/.test(t) && hh<12) hh+=12;
+        const r=valid(hh,30);
+        if(r) return r;
+      }
+
+      // 7โมง / 7โมงเช้า / 7โมง 15 / 7 โมง 15 นาที / 18 นาฬิกา
+      m=t.match(/(?:เวลา|ตอน|ประมาณ|ช่วง)?\s*(\d{1,2})\s*โมง(?:\s*(\d{1,2})\s*(?:นาที)?)?/);
+      if(m){
+        let hh=Number(m[1]), mm=m[2]!==undefined?Number(m[2]):0;
+        if(/บ่าย|เย็น/.test(t) && hh<12) hh+=12;
+        const r=valid(hh,mm);
+        if(r) return r;
+      }
+
+      // บ่ายโมง / บ่าย 1 / บ่ายสอง / บ่ายสาม / บ่ายสี่ / บ่ายห้า
+      const digitHour={'หนึ่ง':1,'สอง':2,'สาม':3,'สี่':4,'ห้า':5,'หก':6,'เจ็ด':7,'แปด':8,'เก้า':9,'สิบ':10,'สิบเอ็ด':11,'สิบสอง':12};
+      m=t.match(/บ่าย\s*(หนึ่ง|สอง|สาม|สี่|ห้า|หก|เจ็ด|แปด|เก้า|สิบ|สิบเอ็ด|สิบสอง|\d{1,2})(?:\s*(?:โมง|นาฬิกา))?(?:\s*(\d{1,2})\s*นาที)?/);
+      if(m){
+        let hh=/^\d+$/.test(m[1])?Number(m[1]):digitHour[m[1]];
+        if(hh===1) hh=13; else if(hh<12) hh+=12;
+        const mm=m[2]!==undefined?Number(m[2]):0;
+        const r=valid(hh,mm);
+        if(r) return r;
+      }
+
+      // ภาษาไทย — รองรับนาที 0-59 แบบประกอบคำ เช่น สิบห้า, ยี่สิบห้า, สามสิบ, สี่สิบห้า
+      const minuteWords={
+        'ศูนย์':0,'หนึ่ง':1,'สอง':2,'สาม':3,'สี่':4,'ห้า':5,'หก':6,'เจ็ด':7,'แปด':8,'เก้า':9,
+        'สิบ':10,'สิบเอ็ด':11,'สิบสอง':12,'สิบสาม':13,'สิบสี่':14,'สิบห้า':15,'สิบหก':16,'สิบเจ็ด':17,'สิบแปด':18,'สิบเก้า':19,
+        'ยี่สิบ':20,'ยี่สิบเอ็ด':21,'ยี่สิบสอง':22,'ยี่สิบสาม':23,'ยี่สิบสี่':24,'ยี่สิบห้า':25,'ยี่สิบหก':26,'ยี่สิบเจ็ด':27,'ยี่สิบแปด':28,'ยี่สิบเก้า':29,
+        'สามสิบ':30,'สามสิบเอ็ด':31,'สามสิบสอง':32,'สามสิบสาม':33,'สามสิบสี่':34,'สามสิบห้า':35,'สามสิบหก':36,'สามสิบเจ็ด':37,'สามสิบแปด':38,'สามสิบเก้า':39,
+        'สี่สิบ':40,'สี่สิบเอ็ด':41,'สี่สิบสอง':42,'สี่สิบสาม':43,'สี่สิบสี่':44,'สี่สิบห้า':45,'สี่สิบหก':46,'สี่สิบเจ็ด':47,'สี่สิบแปด':48,'สี่สิบเก้า':49,
+        'ห้าสิบ':50,'ห้าสิบเอ็ด':51,'ห้าสิบสอง':52,'ห้าสิบสาม':53,'ห้าสิบสี่':54,'ห้าสิบห้า':55,'ห้าสิบหก':56,'ห้าสิบเจ็ด':57,'ห้าสิบแปด':58,'ห้าสิบเก้า':59
+      };
+      const hourWords={
+        'เจ็ด':7,'แปด':8,'เก้า':9,'สิบ':10,'สิบเอ็ด':11,'สิบสอง':12,
+        'หนึ่ง':1,'สอง':2,'สาม':3,'สี่':4,'ห้า':5,'หก':6
+      };
+
+      // จับรูปแบบ “เจ็ดโมงสิบห้า”, “เก้าโมงครึ่ง”, “ห้าโมงเย็น”, “หกโมงเย็น”
+      const hourKeys=Object.keys(hourWords).sort((a,b)=>b.length-a.length);
+      for(const hw of hourKeys){
+        const hourVal=hourWords[hw];
+        const idx=t.indexOf(hw+'โมง');
+        const idxClock=t.indexOf(hw+'นาฬิกา');
+        const pos=idx>=0?idx:idxClock;
+        if(pos<0) continue;
+
+        let hh=hourVal;
+        const before=t.slice(Math.max(0,pos-12),pos);
+        const after=t.slice(pos + (idx>=0 ? (hw+'โมง').length : (hw+'นาฬิกา').length));
+
+        // เช้า = คงชั่วโมงเดิม, บ่าย/เย็น = +12 (ยกเว้น 12)
+        if(/บ่าย|เย็น/.test(before) && hh<12) hh+=12;
+        if(/หนึ่งทุ่ม|สองทุ่ม|สามทุ่ม|สี่ทุ่ม|ห้าทุ่ม|หกทุ่ม/.test(t)) return null; // เกินช่วงที่กำหนด
+
+        if(after.includes('ครึ่ง')) return valid(hh,30);
+
+        let mm=null;
+        const minuteKeys=Object.keys(minuteWords).sort((a,b)=>b.length-a.length);
+        for(const mw of minuteKeys){
+          if(after.includes(mw)) { mm=minuteWords[mw]; break; }
+        }
+        if(mm===null){
+          const dm=after.match(/\s*(\d{1,2})\s*(?:นาที)?/);
+          if(dm) mm=Number(dm[1]);
+        }
+        if(mm===null) mm=0;
+        const r=valid(hh,mm);
+        if(r) return r;
+      }
+
+      // “เจ็ดโมงเช้า” / “แปดโมงเย็น” ที่ไม่มีนาที
+      for(const hw of hourKeys){
+        if(t.includes(hw+'โมงเช้า') || t.includes(hw+'โมง')){
+          let hh=hourWords[hw];
+          if(t.includes(hw+'โมงเย็น') && hh<12) hh+=12;
+          const r=valid(hh,0);
+          if(r) return r;
+        }
+      }
+
+      // ภาษาไทยแบบ “เจ็ด จุด หนึ่งห้า” หรือ “สิบแปด จุด ศูนย์ศูนย์”
+      const hourThai=hourKeys.find(x=>t.includes(x+'จุด'));
+      if(hourThai){
+        const tail=t.split(hourThai+'จุด')[1]||'';
+        let mm=null;
+        // คำเลข 2 หลักที่พูดติดกัน
+        const twoDigit={
+          'ศูนย์ห้า':5,'หนึ่งศูนย์':10,'หนึ่งห้า':15,'สองศูนย์':20,'สองห้า':25,'สามศูนย์':30,'สามห้า':35,'สี่ศูนย์':40,'สี่ห้า':45,'ห้าศูนย์':50,'ห้าห้า':55
+        };
+        for(const [w,v] of Object.entries(twoDigit)){if(tail.includes(w)){mm=v;break;}}
+        if(mm===null){
+          const n=Object.entries(minuteWords).sort((a,b)=>b[0].length-a[0].length).find(([w])=>tail.includes(w));
+          if(n) mm=n[1];
+        }
+        const r=valid(hourWords[hourThai],mm===null?0:mm);
+        if(r) return r;
+      }
+
       return null;
     }
-    const pt=parseVoiceTime(txt), has=!!pt; const start=has?String(pt[0]).padStart(2,'0')+':'+String(pt[1]).padStart(2,'0'):'';
-    let end='';if(has){const d=new Date(2000,0,1,pt[0],pt[1]+60);end=String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0')}
-    const subj=subjectMatch?subjectMatch[0]:'';const teacher=teacherMatch?teacherMatch[0].replace(/^(ครู|อาจารย์|อ\.)\s*/,'').trim():'';
-    if(typeof openModal==='function')openModal('classModal');
-    set('inputSubject',subj);set('inputStartTime',start);set('inputEndTime',end);set('inputLoc',teacher);
-    document.querySelectorAll('.repeat-day').forEach(c=>c.checked=dayKey!==undefined&&+c.value===dayMap[dayKey]);
-    const modal=document.getElementById('classModal');if(modal){panel.classList.remove('show');document.body.classList.add('voice-modal-open');modal.classList.add('active');modal.style.display='flex';modal.style.zIndex='1000000'}
-    show('ได้ยิน: “'+txt+'”'+(subj||teacher||start?'\n'+[subj?'📚 '+subj:'',teacher?'👨‍🏫 '+teacher:'',start?'⏰ '+start+' - '+end:''].filter(Boolean).join('  '):''),false);
-    ui('idle','ตรวจข้อมูลแล้ว กด “บันทึกวิชา” ได้เลย');return true;
-  }
+    const parsedTime=parseVoiceTime(txt);
+    if(parsedTime){ h=parsedTime[0]; m=parsedTime[1]; }
 
-  async function ensureMicPermission(){
-    if(micPermissionReady) return true;
-    if(permissionBusy) return false;
-    if(!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia){
-      // Older Safari/iOS: let SpeechRecognition itself request permission.
-      micPermissionReady=true; return true;
+    // ไม่เดาเวลา ถ้าผู้ใช้ไม่ได้พูดเวลา
+    const hasTime=h!==undefined;
+    const start=hasTime ? `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}` : '';
+    let end='';
+    if(hasTime){
+      const endDate=new Date(2000,0,1,h,m+60);
+      end=`${String(endDate.getHours()).padStart(2,'0')}:${String(endDate.getMinutes()).padStart(2,'0')}`;
     }
-    permissionBusy=true;
-    try{
-      const stream=await navigator.mediaDevices.getUserMedia({audio:{echoCancellation:true,noiseSuppression:true,autoGainControl:true}});
-      // Important: use getUserMedia only to establish the app's microphone permission.
-      // Release the temporary capture before SpeechRecognition starts so the two audio
-      // sessions do not compete for the microphone.
-      try{stream.getTracks().forEach(t=>t.stop())}catch(e){}
-      micPermissionReady=true;
-      return true;
-    }catch(e){
-      micPermissionReady=false;
-      ui('idle','ต้องอนุญาตไมโครโฟน');
-      show('กรุณาอนุญาตไมโครโฟนในการตั้งค่าของ Safari แล้วกดไมค์อีกครั้ง',false);
-      return false;
-    }finally{permissionBusy=false;}
+
+    const subj=subjectMatch?subjectMatch[0]:'';
+    const teacher=teacherMatch?teacherMatch[0].replace(/^(ครู|อาจารย์|อ\.)\s*/,'').trim():'';
+
+    // เปิดด้วยฟังก์ชันกลางของแอปก่อน แล้วค่อยเติมค่าที่จับได้
+    if(typeof openModal==='function') openModal('classModal');
+    set('inputSubject',subj);
+    set('inputStartTime',start);
+    set('inputEndTime',end);
+    set('inputLoc',teacher);
+    document.querySelectorAll('.repeat-day').forEach(c=>c.checked=dayKey!==undefined && +c.value===dayMap[dayKey]);
+
+    const modal=document.getElementById('classModal');
+    if(modal){
+      closePanel();
+      document.body.classList.add('voice-modal-open');
+      modal.classList.add('active');
+      modal.style.display='flex';
+      modal.style.zIndex='1000000';
+    }
+
+    const summary=[subj?'📚 '+subj:'',teacher?'👨‍🏫 '+teacher:'',start?'⏰ '+start+' - '+end:''].filter(Boolean).join('  ');
+    show(`ได้ยิน: “${txt}”${summary?'\n'+summary:''}`,false);
+    status.textContent='ตรวจข้อมูลแล้ว กด “บันทึกวิชา” ได้เลย';
+    processing=false;
+    setState('idle','ตรวจข้อมูลแล้ว');
+    return true;
   }
 
-  async function start(){
-    if(state==='listen'||state==='process'||parserBusy||permissionBusy)return;
-    clearWait(); session++; finalText='';interimText='';panel.classList.add('show');
-    ui('listen','กำลังเตรียมไมโครโฟน…');
-    const ok=await ensureMicPermission();
-    if(!ok || session<1) return;
-    const r=build(); ui('listen','กำลังเปิดไมค์…');
-    // Re-arm the same recognizer only after permission has been confirmed.
+  // ===== Voice Engine V2: Easy + Stable =====
+  // หลักการ: 1 tap = 1 session, แสดง interim ทันที, final แล้วประมวลผลครั้งเดียว
+  let endTimer=null;
+  let finalizeTimer=null;
+  let manuallyStopped=false;
+  let gotFinal=false;
+  let sessionId=0;
+
+  function clearVoiceTimers(){
+    if(endTimer){ clearTimeout(endTimer); endTimer=null; }
+    if(finalizeTimer){ clearTimeout(finalizeTimer); finalizeTimer=null; }
+  }
+
+  function makeRecognition(mySession){
+    const r=new SR();
+    r.lang='th-TH';
+    r.interimResults=true;
+    r.continuous=false;
+    r.maxAlternatives=1;
+    r.onstart=()=>{
+      if(mySession!==sessionId) return;
+      listening=true;
+      manuallyStopped=false;
+      setState('listen','กำลังฟัง…');
+      show('กำลังฟัง… พูดได้เลย',false);
+    };
+    r.onresult=(e)=>onResult(e,mySession);
+    r.onerror=(e)=>onError(e,mySession);
+    r.onend=()=>onEnd(mySession);
+    return r;
+  }
+
+  // V4: อย่า abort/stop recognition เก่าภายใน click เดียวกับการ start รอบใหม่
+  // Safari/iOS บางรุ่นจะค้างถ้าสั่ง abort() แล้ว start() ทันทีใน gesture เดียวกัน
+  let restartGuard=0;
+  function detachOldRecognition(){
+    const old=rec;
+    rec=null;
+    listening=false;
+    if(old){
+      try{ old.onresult=null; old.onerror=null; old.onend=null; }catch(e){}
+      // สำคัญ: อย่า stop object เก่าที่จบแล้วใน gesture ของรอบใหม่
+      // Safari/iOS บางรุ่นจะถือ audio session ค้างถ้ามี stop ซ้ำ
+    }
+  }
+
+  function startListening(){
+    if(listening || processing) return;
+    clearVoiceTimers();
+
+    restartGuard++;
+    // เคลียร์เฉพาะ reference/handlers แต่ไม่ abort ใน gesture เดียวกับ start
+    detachOldRecognition();
+    sessionId++;
+    const mySession=sessionId;
+    finalText='';
+    interimText='';
+    gotFinal=false;
+    manuallyStopped=false;
+    processing=false;
+    panel.classList.add('show');
+    setState('listen','กำลังเปิดไมค์…');
+    show('กำลังเปิดไมค์… พูดได้เลย',false);
+
+    // Safari PWA ต้องมีช่วงว่างหลัง onend/ปิด modal ก่อนเปิด audio session ใหม่
     setTimeout(()=>{
-      if(state!=='listen'||finalText||interimText)return;
-      try{r.start()}catch(e){
-        setTimeout(()=>{
-          if(state!=='listen'||finalText||interimText)return;
-          try{r.start()}catch(_){ui('idle','ไมค์ยังไม่พร้อม');show('แตะไมค์อีกครั้งแล้วลองใหม่',false)}
-        },500);
+      if(mySession!==sessionId || !listening) return;
+      try{
+        const newRec=makeRecognition(mySession);
+        rec=newRec;
+        newRec.start();
+      }catch(e){
+        rec=null;
+        listening=false;
+        console.warn('Voice start failed:',e);
+        setState('idle','ไมค์ยังไม่พร้อม');
+        show('ไมค์ยังไม่พร้อม — แตะไมค์อีกครั้งแล้วพูดได้เลย',false);
+      }
+    },650)
+  }
+
+  function stopListening(){
+    if(!listening && !rec) return;
+    manuallyStopped=true;
+    clearVoiceTimers();
+    const myRec=rec;
+    // สำคัญ: ห้ามประมวลผล/เปิด Modal ก่อน SpeechRecognition onend
+    // เพราะ Safari/iOS อาจยังถือ microphone session เดิมอยู่ ทำให้รอบที่ 2 start ไม่ทำงาน
+    listening=false;
+    setState('process','กำลังหยุดไมค์…');
+    if(myRec){
+      try{ myRec.stop(); }catch(e){
+        try{ myRec.abort(); }catch(_e){}
+      }
+    }else{
+      finishRecognition();
+    }
+  }
+
+  function finishRecognition(mySession=sessionId){
+    if(mySession!==sessionId || processing) return;
+    clearVoiceTimers();
+    const spoken=(finalText||interimText||'').replace(/\s+/g,' ').trim();
+    listening=false;
+    rec=null;
+    if(!spoken){
+      processing=false;
+      setState('idle','พร้อมรับคำสั่ง');
+      show('ยังไม่ได้ยินข้อความ — แตะไมค์แล้วลองพูดใหม่',false);
+      return;
+    }
+    processing=true;
+    setState('process','กำลังประมวลผล…');
+    show(spoken,false);
+    // ให้ iOS วาดข้อความก่อน แล้วค่อย parse เพียงครั้งเดียว
+    finalizeTimer=setTimeout(()=>{
+      finalizeTimer=null;
+      if(mySession!==sessionId) return;
+      try{
+        const ok=parseAndFill(spoken);
+        if(!ok){
+          processing=false;
+          setState('idle','พร้อมรับคำสั่ง');
+          show('อ่านคำสั่งไม่สำเร็จ ลองพูดใหม่',false);
+        }
+      }catch(err){
+        console.error('Voice parse error:',err);
+        processing=false;
+        setState('idle','พร้อมรับคำสั่ง');
+        show('เกิดข้อผิดพลาด ลองกดไมค์อีกครั้ง',false);
       }
     },80);
   }
-  function stop(){if(state!=='listen'||!rec)return;ui('process','กำลังหยุดไมค์…');try{rec.stop()}catch(e){try{rec.abort()}catch(_){}}}
-  fab.onclick=()=>state==='listen'?stop():state==='process'?null:start();
-  const sb=document.getElementById('voiceStop');if(sb)sb.onclick=()=>state==='listen'?stop():panel.classList.remove('show');
-  const cb=document.getElementById('voiceClear');if(cb)cb.onclick=()=>{session++;clearWait();finalText='';interimText='';ui('idle','พร้อมรับคำสั่ง');show('แตะไมค์แล้วพูดได้เลย…',true)};
-  const xb=document.getElementById('voiceClose');if(xb)xb.onclick=()=>{panel.classList.remove('show');ui('idle','พร้อมรับคำสั่ง')};
-  // DO NOT stop/abort recognition here. At this point recognition has already ended before the modal opened.
-  window.addEventListener('voice-modal-closed',()=>{session++;parserBusy=false;clearWait();finalText='';interimText='';ui('idle','พร้อมรับคำสั่ง');show('แตะไมค์แล้วพูดได้เลย…',true)});
+
+  fab.onclick=()=>{
+    if(listening){ stopListening(); return; }
+    if(processing) return;
+    startListening();
+  };
+
+  const stopBtn=document.getElementById('voiceStop');
+  if(stopBtn) stopBtn.onclick=()=>{
+    if(listening) stopListening();
+    else closePanel();
+  };
+
+  const clearBtn=document.getElementById('voiceClear');
+  if(clearBtn) clearBtn.onclick=()=>{
+    sessionId++;
+    if(rec){ try{rec.abort();}catch(e){} }
+    rec=null;
+    listening=false;
+    processing=false;
+    clearVoiceTimers();
+    finalText='';
+    interimText='';
+    gotFinal=false;
+    setState('idle','พร้อมรับคำสั่ง');
+    show('แตะไมค์แล้วพูดได้เลย…',true);
+  };
+
+  const closeBtn=document.getElementById('voiceClose');
+  if(closeBtn) closeBtn.onclick=()=>{
+    sessionId++;
+    if(rec){ try{rec.abort();}catch(e){} }
+    rec=null;
+    listening=false;
+    processing=false;
+    clearVoiceTimers();
+    closePanel();
+    setState('idle','พร้อมรับคำสั่ง');
+  };
+
+  // หลังบันทึก/ยกเลิก Modal ให้คืน Voice Engine สู่สถานะพร้อมใช้งาน
+  window.addEventListener('voice-modal-closed',()=>{
+    clearVoiceTimers();
+    processing=false;
+    listening=false;
+    // หลังบันทึกวิชา: ตัด session เดิมและปล่อย object เก่าให้ Safari จัดการเอง
+    rec=null;
+    sessionId++;
+    finalText='';
+    interimText='';
+    gotFinal=false;
+    setState('idle','พร้อมรับคำสั่ง');
+    show('แตะไมค์แล้วพูดได้เลย…',true);
+  });
+
+  function onResult(e,mySession){
+    if(mySession!==sessionId) return;
+    let finals=[];
+    let interims=[];
+    for(let i=e.resultIndex;i<e.results.length;i++){
+      const t=(e.results[i][0]?.transcript||'').trim();
+      if(!t) continue;
+      if(e.results[i].isFinal){
+        finals.push(t);
+        gotFinal=true;
+      }else{
+        interims.push(t);
+      }
+    }
+    if(finals.length) finalText=(finalText+' '+finals.join(' ')).trim();
+    interimText=interims.join(' ').trim();
+    const live=(finalText||interimText).trim();
+    if(live){
+      show(live,false);
+      status.textContent=gotFinal?'รับข้อความแล้ว':'กำลังฟัง…';
+    }
+  }
+
+  function onError(e,mySession){
+    if(mySession!==sessionId) return;
+    clearVoiceTimers();
+    const hasText=!!(finalText||interimText);
+
+    // ไม่เรียก finishRecognition จาก onerror อีกต่อไปเมื่อมีข้อความ
+    // ให้ onend เป็นจุดเดียวที่ปิด microphone session แล้วค่อย parse
+    if(hasText && (e.error==='aborted' || e.error==='no-speech' || e.error==='network')){
+      listening=false;
+      setState('process','กำลังปิดไมค์…');
+      return;
+    }
+
+    listening=false;
+    rec=null;
+    if(e.error==='not-allowed' || e.error==='service-not-allowed'){
+      processing=false;
+      setState('idle','ต้องอนุญาตไมโครโฟน');
+      show('กรุณาอนุญาตไมโครโฟน แล้วกดไมค์อีกครั้ง',false);
+    }else if(e.error==='no-speech'){
+      processing=false;
+      setState('idle','ไม่ได้ยินเสียง');
+      show('ไม่ได้ยินเสียง — แตะไมค์แล้วพูดใหม่',false);
+    }else{
+      // ให้ onend จัดการกรณีที่ browser ส่ง error แล้วตามด้วย end
+      setState('process','กำลังปิดไมค์…');
+      if(!hasText){
+        setTimeout(()=>{
+          if(mySession!==sessionId || processing || listening) return;
+          if(!rec) {
+            processing=false;
+            setState('idle','พร้อมรับคำสั่ง');
+            show('ไมค์ยังไม่พร้อม — แตะไมค์อีกครั้งแล้วลองใหม่',false);
+          }
+        },900);
+      }
+    }
+  }
+
+  function onEnd(mySession){
+    if(mySession!==sessionId) return;
+    listening=false;
+    const endedRec=rec;
+    rec=null;
+    if(processing) return;
+    clearVoiceTimers();
+
+    // Safari/iOS: รอให้ engine ปล่อย microphone session จริงก่อน parse/open modal
+    // หลัง onend แล้วเท่านั้นจึงถือว่ารอบเสียงจบสมบูรณ์
+    endTimer=setTimeout(()=>{
+      endTimer=null;
+      if(mySession!==sessionId || processing) return;
+      finishRecognition(mySession);
+    }, gotFinal ? 120 : 250);
+  }
+
 })();
 </script>
 </body>
